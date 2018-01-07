@@ -9,7 +9,7 @@ import java.util.concurrent.BlockingQueue;
 
 /**
  *
- * @author spykee
+ * @author george-toma
  */
 public class DefaultThreadPoolMutator implements ThreadPoolMutator{
 

@@ -1,21 +1,22 @@
 package com.github.sliding.adaptive.thread.pool.report;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  *
- * @author spykee
+ * @author george-toma
  */
 public abstract class ReportHandler {
 
-    private final TimeUnit metricExpierationUnit;
-    private final int metricExpirationValue;
+    protected final int numberOfMetrics;
+    protected final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
-    public ReportHandler(TimeUnit metricExpierationUnit, int metricExpirationValue) {
-        this.metricExpierationUnit = metricExpierationUnit;
-        this.metricExpirationValue = metricExpirationValue;
+    public ReportHandler(int numberOfMetrics) {
+        this.numberOfMetrics = numberOfMetrics;
     }
 
     public abstract void addTaskMetrics(TaskMetrics metrics);
@@ -29,6 +30,7 @@ public abstract class ReportHandler {
     public abstract void getLastTaskMetric();
 
     public abstract void getLastSystemMetric();
+
 
     /**
      * Returns the datetime and the values with the most optimal thread pool

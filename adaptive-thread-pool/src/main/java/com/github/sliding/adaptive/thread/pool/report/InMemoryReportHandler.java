@@ -1,22 +1,29 @@
 package com.github.sliding.adaptive.thread.pool.report;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  *
- * @author spykee
+ * @author george-toma
  */
 public class InMemoryReportHandler extends ReportHandler {
+    /*create a smart data structure to hold needed data;
+     * automatically remove older values;
+     */
+  //  private final Map<String>
 
-    public InMemoryReportHandler(TimeUnit metricExpierationUnit, int metricExpirationValue) {
-        super(metricExpierationUnit, metricExpirationValue);
+    /**
+     *
+     * @param numberOfMetrics Window_start param of sliding algorithm
+     */
+    public InMemoryReportHandler( int numberOfMetrics) {
+        super(numberOfMetrics);
     }
 
     @Override
     public void addTaskMetrics(TaskMetrics metrics) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        
     }
 
     @Override

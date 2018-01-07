@@ -4,7 +4,7 @@ import java.util.concurrent.BlockingQueue;
 
 /**
  *
- * @author spykee
+ * @author george-toma
  */
 public interface ThreadPoolMutator {
 

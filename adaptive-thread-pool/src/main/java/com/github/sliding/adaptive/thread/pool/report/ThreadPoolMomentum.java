@@ -10,17 +10,17 @@ import java.util.Objects;
 
 /**
  *
- * @author spykee
+ * @author george-toma
  */
 public class ThreadPoolMomentum {
 
     private final LocalDateTime optimalMomentumDateTime;
-    private final double optimalMomentumIndex;
+    private final double optimalMomentum;
     private final int optimalThreadPoolSize;
 
-    public ThreadPoolMomentum(LocalDateTime optimalMomentumDateTime, double optimalMomentumIndex, int optimalThreadPoolSize) {
+    public ThreadPoolMomentum(LocalDateTime optimalMomentumDateTime, double optimalMomentum, int optimalThreadPoolSize) {
         this.optimalMomentumDateTime = optimalMomentumDateTime;
-        this.optimalMomentumIndex = optimalMomentumIndex;
+        this.optimalMomentum = optimalMomentum;
         this.optimalThreadPoolSize = optimalThreadPoolSize;
     }
 
@@ -28,7 +28,7 @@ public class ThreadPoolMomentum {
     public int hashCode() {
         int hash = 7;
         hash = 41 * hash + Objects.hashCode(this.optimalMomentumDateTime);
-        hash = 41 * hash + (int) (Double.doubleToLongBits(this.optimalMomentumIndex) ^ (Double.doubleToLongBits(this.optimalMomentumIndex) >>> 32));
+        hash = 41 * hash + (int) (Double.doubleToLongBits(this.optimalMomentum) ^ (Double.doubleToLongBits(this.optimalMomentum) >>> 32));
         hash = 41 * hash + this.optimalThreadPoolSize;
         return hash;
     }
@@ -45,7 +45,7 @@ public class ThreadPoolMomentum {
             return false;
         }
         final ThreadPoolMomentum other = (ThreadPoolMomentum) obj;
-        if (Double.doubleToLongBits(this.optimalMomentumIndex) != Double.doubleToLongBits(other.optimalMomentumIndex)) {
+        if (Double.doubleToLongBits(this.optimalMomentum) != Double.doubleToLongBits(other.optimalMomentum)) {
             return false;
         }
         if (this.optimalThreadPoolSize != other.optimalThreadPoolSize) {

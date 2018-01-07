@@ -1,6 +1,10 @@
 package com.github.sliding.adaptive.thread.pool;
 
 import com.github.sliding.adaptive.thread.pool.factory.AdaptiveThreadFactory;
+import com.github.sliding.adaptive.thread.pool.report.InMemoryReportHandler;
+import com.github.sliding.adaptive.thread.pool.report.ReportHandler;
+import com.github.sliding.adaptive.thread.pool.report.TaskMetrics;
+import com.github.sliding.adaptive.thread.pool.report.TaskMetrics.Builder;
 
 import java.util.List;
 import java.util.concurrent.*;
@@ -39,6 +43,8 @@ public class AdaptiveThreadPool extends AbstractExecutorService {
     private int offsetStartingThreads;
     private final ThreadFactory threadFactory;
     private final RejectedExecutionHandler rejectedExecutionHandler;
+    //keep last 30 metrics
+    private final ReportHandler reportHandler = new InMemoryReportHandler(30);
 
     /**
      * Creates a new {@code AdaptiveThreadPool} with the given initial
@@ -115,11 +121,13 @@ public class AdaptiveThreadPool extends AbstractExecutorService {
         if (command == null) {
             throw new NullPointerException();
         }
-        
-        addTaskToQueue(command);
-        //content
-        
-        executeTask();
+        TaskMetrics.Builder taskMetricsBuilder = TaskMetrics
+                .builder()
+                .withTaskClientSubmissionTime(Timestamp.getTimestamp());
+        addTaskToQueue(command, taskMetricsBuilder);
+
+        executeTask(taskMetricsBuilder);
+
     }
 
     protected void beforeExecute(Thread t, Runnable r) {
@@ -128,14 +136,16 @@ public class AdaptiveThreadPool extends AbstractExecutorService {
     protected void afterExecute(Thread t, Runnable r) {
     }
 
-    private void executeTask() {
+    private void executeTask(Builder taskMetricsBuilder) {
         boolean workerStarted = false;
         boolean workerAdded = false;
 
     }
 
-    private void addTaskToQueue(Runnable command) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    private void addTaskToQueue(Runnable command, Builder taskMetricsBuilder) {
+        tasksQueue.add(command);
+        taskMetricsBuilder
+                .withTaskSubmissionCompletedTime(Timestamp.getTimestamp());
     }
 
     class Worker {
