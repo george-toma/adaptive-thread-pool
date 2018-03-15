@@ -1,5 +1,7 @@
 package com.github.sliding.adaptive.thread.pool.mutator;
 
+import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
+
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -20,5 +22,5 @@ public interface ThreadPoolMutator {
     /**
      *
      */
-    void mutateThreadPoolSize(BlockingQueue<Runnable> threadsQueue);
+    void mutateThreadPoolSize(BlockingQueue<TaskWorker> threadsQueue);
 }

@@ -1,8 +1,11 @@
 package com.github.sliding.adaptive.thread.pool.report;
 
-import java.time.LocalDateTime;
+import com.github.sliding.adaptive.thread.pool.report.metric.TaskMetrics;
+import com.github.sliding.adaptive.thread.pool.report.metric.ThreadPoolSystemMetrics;
+import com.github.sliding.adaptive.thread.pool.report.momentum.ThreadPoolMomentum;
+
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -23,13 +26,13 @@ public abstract class ReportHandler {
 
     public abstract void addSystemMetrics(ThreadPoolSystemMetrics metrics);
 
-    public abstract void getLastTaskMetrics(int offset);
+    public abstract List<TaskMetrics> getLastTaskMetrics(int offset);
 
     public abstract void getLastSystemMetrics(int offset);
 
-    public abstract void getLastTaskMetric();
+    public abstract void getLastTaskMetrics();
 
-    public abstract void getLastSystemMetric();
+    public abstract void getLastSystemMetrics();
 
 
     /**

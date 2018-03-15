@@ -1,5 +1,10 @@
 package com.github.sliding.adaptive.thread.pool.report;
 
+import com.github.sliding.adaptive.thread.pool.report.metric.TaskMetrics;
+import com.github.sliding.adaptive.thread.pool.report.metric.ThreadPoolSystemMetrics;
+import com.github.sliding.adaptive.thread.pool.report.momentum.ThreadPoolMomentum;
+
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -8,10 +13,6 @@ import java.util.concurrent.TimeUnit;
  * @author george-toma
  */
 public class InMemoryReportHandler extends ReportHandler {
-    /*create a smart data structure to hold needed data;
-     * automatically remove older values;
-     */
-  //  private final Map<String>
 
     /**
      *
@@ -32,22 +33,23 @@ public class InMemoryReportHandler extends ReportHandler {
     }
 
     @Override
-    public void getLastTaskMetrics(int offset) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public List<TaskMetrics> getLastTaskMetrics(int offset) {
+        return null;
     }
 
     @Override
     public void getLastSystemMetrics(int offset) {
+
+
+    }
+
+    @Override
+    public void getLastTaskMetrics() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public void getLastTaskMetric() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void getLastSystemMetric() {
+    public void getLastSystemMetrics() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 

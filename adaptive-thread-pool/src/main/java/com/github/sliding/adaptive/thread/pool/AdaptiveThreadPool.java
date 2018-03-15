@@ -1,13 +1,32 @@
 package com.github.sliding.adaptive.thread.pool;
 
-import com.github.sliding.adaptive.thread.pool.factory.AdaptiveThreadFactory;
+import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
+import com.github.sliding.adaptive.thread.pool.factory.thread.AdaptiveThreadFactory;
+import com.github.sliding.adaptive.thread.pool.factory.thread.AdaptiveThreadFactoryBuilder;
+import com.github.sliding.adaptive.thread.pool.flow.EventPublisher;
+import com.github.sliding.adaptive.thread.pool.flow.SharedEventPublisher;
+import com.github.sliding.adaptive.thread.pool.flow.TaskEventPublisher;
+import com.github.sliding.adaptive.thread.pool.flow.processor.EventFilterProcessor;
+import com.github.sliding.adaptive.thread.pool.flow.processor.EventFilterProcessorFactory;
+import com.github.sliding.adaptive.thread.pool.flow.subscriber.EventSubscriber;
+import com.github.sliding.adaptive.thread.pool.flow.subscriber.concrete.TaskClientSubmissionTimeSubscriber;
+import com.github.sliding.adaptive.thread.pool.flow.subscriber.concrete.TaskFinishedSubscriber;
+import com.github.sliding.adaptive.thread.pool.flow.subscriber.concrete.TaskStartsExecutionEventSubscriber;
+import com.github.sliding.adaptive.thread.pool.flow.subscriber.concrete.TaskSubmissionCompletedTimeSubscriber;
+import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
+import com.github.sliding.adaptive.thread.pool.listener.event.task.TaskEvent;
+import com.github.sliding.adaptive.thread.pool.mutator.DefaultThreadPoolMutator;
+import com.github.sliding.adaptive.thread.pool.mutator.ThreadPoolMutator;
 import com.github.sliding.adaptive.thread.pool.report.InMemoryReportHandler;
 import com.github.sliding.adaptive.thread.pool.report.ReportHandler;
-import com.github.sliding.adaptive.thread.pool.report.TaskMetrics;
-import com.github.sliding.adaptive.thread.pool.report.TaskMetrics.Builder;
+import com.github.sliding.adaptive.thread.pool.report.TaskMetricsRepository;
+import com.github.sliding.adaptive.thread.pool.report.metric.TaskMetrics;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -17,8 +36,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  *
  * @author george-toma
  */
-public class AdaptiveThreadPool extends AbstractExecutorService {
+@Log4j2
+public class AdaptiveThreadPool {
 
+    private final BlockingQueue<Task> tasksQueue;
     /**
      * Lock held on access to workers set and related bookkeeping. While we
      * could use a concurrent set of some sort, it turns out to be generally
@@ -38,13 +59,16 @@ public class AdaptiveThreadPool extends AbstractExecutorService {
     private final Lock writeLock = rwl.writeLock();
 
     private final long keepAliveTime;
-    private final BlockingQueue<Runnable> tasksQueue;
-    private final BlockingQueue<Runnable> threadsQueue;
+    private final BlockingQueue<TaskWorker> threadsQueue;
+    //keep last 30 metric
+    private final ReportHandler reportHandler = new InMemoryReportHandler(30);
     private int offsetStartingThreads;
     private final ThreadFactory threadFactory;
     private final RejectedExecutionHandler rejectedExecutionHandler;
-    //keep last 30 metrics
-    private final ReportHandler reportHandler = new InMemoryReportHandler(30);
+    private final ThreadPoolMutator threadPoolMutator;
+    private final TaskMetricsRepository taskMetricsRepository = new TaskMetricsRepository();
+    private final EventPublisher eventPublisher = new TaskEventPublisher();
+    private AtomicBoolean shutdown = new AtomicBoolean(Boolean.FALSE);
 
     /**
      * Creates a new {@code AdaptiveThreadPool} with the given initial
@@ -53,34 +77,35 @@ public class AdaptiveThreadPool extends AbstractExecutorService {
      * methods instead of this general purpose constructor.
      *
      * @param offsetStartingThreads the number of threads used to start the
-     * thread pool. Default value is 1.
-     * @param tasksQueue the queue to use for holding tasks before they are
-     * executed. This queue will hold only the {@code Runnable} tasks submitted
-     * by the {@code execute} method.
+     *                              thread pool. Default value is 1.
+     * @param tasksQueue            the queue to use for holding tasks before they are
+     *                              executed. This queue will hold only the {@code Runnable} tasks submitted
+     *                              by the {@code execute} method.
      */
     public AdaptiveThreadPool(int offsetStartingThreads, long keepAliveTime,
-            TimeUnit unit,
-            BlockingQueue<Runnable> tasksQueue,
-            RejectedExecutionHandler handler) {
+                              TimeUnit unit,
+                              BlockingQueue<Task> tasksQueue,
+                              RejectedExecutionHandler handler,
+                              final AdaptiveThreadFactory threadFactory) {
         this(offsetStartingThreads, keepAliveTime, unit, tasksQueue,
-                new AdaptiveThreadFactory(), handler);
+                threadFactory, handler);
     }
 
     public AdaptiveThreadPool() {
         this(1, 500, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(), new AdaptiveThreadFactory(), null
-        );
+                new LinkedBlockingQueue<>(), AdaptiveThreadFactoryBuilder.buildDefault(), null);
     }
 
     private AdaptiveThreadPool(int offsetStartingThreads, long keepAliveTime,
-            TimeUnit unit,
-            BlockingQueue<Runnable> tasksQueue,
-            ThreadFactory threadFactory,
-            RejectedExecutionHandler handler) {
+                               TimeUnit unit,
+                               BlockingQueue<Task> tasksQueue,
+                               AdaptiveThreadFactory threadFactory,
+                               RejectedExecutionHandler handler) {
         if (offsetStartingThreads <= 0) {
             offsetStartingThreads = 1;
         }
-        if (tasksQueue == null || threadFactory == null || handler == null) {
+        //FIXME  "|| handler == null" on if
+        if (tasksQueue == null || threadFactory == null) {
             throw new NullPointerException();
         }
         this.tasksQueue = tasksQueue;
@@ -89,66 +114,145 @@ public class AdaptiveThreadPool extends AbstractExecutorService {
         this.threadFactory = threadFactory;
         this.rejectedExecutionHandler = handler;
         this.threadsQueue = new LinkedBlockingQueue<>();
+        this.threadPoolMutator = new DefaultThreadPoolMutator(threadFactory);
+        initEventFlow();
+        initDefaultThreads();
     }
 
-    @Override
+    private void initDefaultThreads() {
+        final int cpuSize = Runtime.getRuntime().availableProcessors();
+        for (int i = 0; i < cpuSize; i++) {
+            threadsQueue.offer((TaskWorker) threadFactory.newThread(null));
+        }
+    }
+
+    private void initEventFlow() {
+
+        final EventFilterProcessor eventFilterTaskFinishedProcessor =
+                EventFilterProcessorFactory.TASK_FINISHED_TIME.processor();
+        final EventFilterProcessor eventFilterTaskClientSubmissionTimeProcessor =
+                EventFilterProcessorFactory.TASK_CLIENT_SUBMISSION_TIME.processor();
+
+
+        final EventSubscriber taskFinishedSubscriber = new TaskFinishedSubscriber();
+        final EventSubscriber taskClientSubmissionTimeSubscriber = new TaskClientSubmissionTimeSubscriber();
+        final EventSubscriber taskStartsExecutionEventSubscriber = new TaskStartsExecutionEventSubscriber();
+        final EventSubscriber taskSubmissionCompletedTimeSubscriber = new TaskSubmissionCompletedTimeSubscriber();
+
+        eventPublisher.subscribe(eventFilterTaskFinishedProcessor);
+        eventPublisher.subscribe(eventFilterTaskClientSubmissionTimeProcessor);
+        eventFilterTaskFinishedProcessor.subscribe(taskFinishedSubscriber);
+        eventFilterTaskClientSubmissionTimeProcessor.subscribe(taskClientSubmissionTimeSubscriber);
+    }
+
     public void shutdown() {
+        //do not accept any other new tasks
+        shutdown.set(Boolean.TRUE);
+        tasksQueue.clear();
+        threadsQueue.clear();
+        taskMetricsRepository.shutdownCache();
+        eventPublisher.close();
 
     }
 
-    @Override
     public List<Runnable> shutdownNow() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        //do not accept any other new tasks
+        shutdown.set(Boolean.TRUE);
+        return null;
     }
 
-    @Override
     public boolean isShutdown() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return shutdown.get();
     }
 
-    @Override
     public boolean isTerminated() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    @Override
-    public void execute(Runnable command) {
-        if (command == null) {
+    public void execute(Task task) {
+        if (task == null) {
             throw new NullPointerException();
         }
+        if (isShutdown()) {
+            log.debug("Adaptive thread pool is shutdown");
+        } else {
+            storeTaskMetrics(task);
+            beforeStoreTask(task);
+            addTaskToQueue(task);
+            executeTask();
+        }
+
+    }
+
+    private void storeTaskMetrics(Task task) {
         TaskMetrics.Builder taskMetricsBuilder = TaskMetrics
-                .builder()
-                .withTaskClientSubmissionTime(Timestamp.getTimestamp());
-        addTaskToQueue(command, taskMetricsBuilder);
+                .builder();
+        taskMetricsRepository.store(task.identifier(), taskMetricsBuilder);
+    }
 
-        executeTask(taskMetricsBuilder);
+    private void beforeStoreTask(Task task) {
+        SharedEventPublisher.loadDefault()
+                .submit(TaskEvent.Builder
+                        .describedAs()
+                        .eventType(EventType.TASK_CLIENT_SUBMISSION_TIME)
+                        .identifier(task.identifier())
+                        .createEvent());
+    }
+
+    private void afterStoringTask(Task task) {
+
+        SharedEventPublisher.loadDefault()
+                .submit(TaskEvent.Builder
+                        .describedAs()
+                        .eventType(EventType.TASK_SUBMISSION_COMPLETED_TIME)
+                        .identifier(task.identifier())
+                        .createEvent());
+    }
+
+    private void beforeExecute(Task task) {
+        SharedEventPublisher.loadDefault()
+                .submit(TaskEvent.Builder
+                        .describedAs()
+                        .eventType(EventType.TASK_STARTS_EXECUTION)
+                        .identifier(task.identifier())
+                        .createEvent());
+    }
+
+    private void executeTask() {
+        while (!Thread.interrupted() || isShutdown()) {
+            TaskWorker worker = null;
+            try {
+                worker = threadsQueue.poll(100L, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ex) {
+                log.warn("Could not poll worker", ex);
+            }
+            //no worker available
+            if (worker == null) {
+                threadPoolMutator.mutateThreadPoolSize(threadsQueue);
+                //TODO sa adaug in proiect ce am vorbit cu Ionut
+            } else {
+                Optional<Task> task = Optional.ofNullable(tasksQueue.poll());
+                if (task.isPresent()) {
+                    beforeExecute(task.get());
+                    worker.setTask(task.get());
+                    worker.start();
+                } else {
+                    break;
+                }
+            }
+
+        }
 
     }
 
-    protected void beforeExecute(Thread t, Runnable r) {
-    }
-
-    protected void afterExecute(Thread t, Runnable r) {
-    }
-
-    private void executeTask(Builder taskMetricsBuilder) {
-        boolean workerStarted = false;
-        boolean workerAdded = false;
-
-    }
-
-    private void addTaskToQueue(Runnable command, Builder taskMetricsBuilder) {
+    private void addTaskToQueue(Task command) {
         tasksQueue.add(command);
-        taskMetricsBuilder
-                .withTaskSubmissionCompletedTime(Timestamp.getTimestamp());
+        afterStoringTask(command);
     }
 
-    class Worker {
 
-    }
 }
