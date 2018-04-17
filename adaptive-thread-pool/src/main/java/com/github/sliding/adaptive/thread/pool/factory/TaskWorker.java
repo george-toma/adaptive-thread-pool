@@ -1,15 +1,30 @@
 package com.github.sliding.adaptive.thread.pool.factory;
 
 import com.github.sliding.adaptive.thread.pool.Task;
+import com.github.sliding.adaptive.thread.pool.flow.EventPublisher;
 import com.github.sliding.adaptive.thread.pool.flow.SharedEventPublisher;
 import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
 import com.github.sliding.adaptive.thread.pool.listener.event.task.TaskEvent;
 import lombok.extern.log4j.Log4j2;
 
+import java.util.Optional;
+
 @Log4j2
 public class TaskWorker extends Thread {
 
     private Task task;
+    private final String threadPoolIdentifier;
+
+    /**
+     * Allocates a new {@code Thread} object. This constructor has the same
+     * effect as {@linkplain #Thread(ThreadGroup, Runnable, String) Thread}
+     * {@code (null, null, gname)}, where {@code gname} is a newly generated
+     * name. Automatically generated names are of the form
+     * {@code "Thread-"+}<i>n</i>, where <i>n</i> is an integer.
+     */
+    public TaskWorker(String threadPoolIdentifier) {
+        this.threadPoolIdentifier = threadPoolIdentifier;
+    }
 
     public void setTask(Task task) {
         this.task = task;
@@ -32,13 +47,16 @@ public class TaskWorker extends Thread {
         } finally {
             final String identifier = task.identifier();
             task = null;
-            SharedEventPublisher.loadDefault()
-                    .submit(TaskEvent.Builder
-                            .describedAs()
-                            .eventType(EventType.TASK_FINISHED_TIME)
-                            .taskWorker(this)
-                            .identifier(identifier)
-                            .createEvent());
+            Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
+            if (eventPublisher.isPresent()) {
+                eventPublisher.get()
+                        .submit(TaskEvent.Builder
+                                .describedAs()
+                                .eventType(EventType.TASK_FINISHED_TIME)
+                                .taskWorker(this)
+                                .identifier(identifier)
+                                .createEvent());
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ public final class AdaptiveThreadFactoryBuilder {
     private String namePrefix = THREAD_NAME_PREFIX;
     private boolean isDaemon = false;
     private int priority = Thread.NORM_PRIORITY;
+    private String threadPoolIdentifier;
 
     private AdaptiveThreadFactoryBuilder() {
     }
@@ -14,9 +15,10 @@ public final class AdaptiveThreadFactoryBuilder {
         return new AdaptiveThreadFactoryBuilder();
     }
 
-    public static AdaptiveThreadFactory buildDefault() {
+    public static AdaptiveThreadFactory buildDefault(String threadPoolIdentifier) {
         return builder()
                 .withDaemon(false)
+                .withThreadPoolIdentifier(threadPoolIdentifier)
                 .withPriority(Thread.NORM_PRIORITY)
                 .build();
     }
@@ -34,6 +36,11 @@ public final class AdaptiveThreadFactoryBuilder {
         return this;
     }
 
+    public AdaptiveThreadFactoryBuilder withThreadPoolIdentifier(String threadPoolIdentifier) {
+        this.threadPoolIdentifier = threadPoolIdentifier;
+        return this;
+    }
+
     public AdaptiveThreadFactoryBuilder withPriority(int priority) {
         if (priority < Thread.MIN_PRIORITY || priority > Thread.MAX_PRIORITY) {
             throw new IllegalArgumentException(String.format(
@@ -46,7 +53,7 @@ public final class AdaptiveThreadFactoryBuilder {
     }
 
     public AdaptiveThreadFactory build() {
-        return new AdaptiveThreadFactory(namePrefix, priority, isDaemon);
+        return new AdaptiveThreadFactory(threadPoolIdentifier, namePrefix, priority, isDaemon);
     }
 
 

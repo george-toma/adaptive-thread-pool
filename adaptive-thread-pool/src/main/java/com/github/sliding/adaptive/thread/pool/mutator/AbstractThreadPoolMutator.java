@@ -1,24 +1,19 @@
 package com.github.sliding.adaptive.thread.pool.mutator;
 
-import com.github.sliding.adaptive.thread.pool.report.ReportHandler;
+import com.github.sliding.adaptive.thread.pool.queue.ThreadPoolQueueManagement;
+import com.github.sliding.adaptive.thread.pool.report.MetricsRepositoryQuery;
 
 import java.util.concurrent.ThreadFactory;
 
 public abstract class AbstractThreadPoolMutator implements ThreadPoolMutator {
-    protected final ReportHandler reportHandler;
     protected final ThreadFactory threadFactory;
-    protected final int HISTORIC_METRICS_NUMBER = 3;
-    ;
+    protected final String name;
+    protected final MetricsRepositoryQuery metricsRepositoryQuery = new MetricsRepositoryQuery();
+    protected final ThreadPoolQueueManagement threadPoolQueueManagement;
 
-    public AbstractThreadPoolMutator(ReportHandler reportHandler, ThreadFactory threadFactory) {
-        if (reportHandler == null) {
-            throw new NullPointerException();
-        }
-        this.reportHandler = reportHandler;
+    public AbstractThreadPoolMutator(String name, ThreadFactory threadFactory, ThreadPoolQueueManagement threadPoolQueueManagement) {
+        this.name = name;
         this.threadFactory = threadFactory;
-    }
-
-    public ReportHandler getReportHandler() {
-        return reportHandler;
+        this.threadPoolQueueManagement = threadPoolQueueManagement;
     }
 }

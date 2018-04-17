@@ -1,7 +1,8 @@
 package com.github.sliding.adaptive.thread.pool.report.metric;
 
+import java.util.Objects;
+
 /**
- *
  * @author george-toma
  */
 public class TaskMetrics {
@@ -10,12 +11,16 @@ public class TaskMetrics {
     private long taskSubmissionCompletedTime;
     private long taskStartsExecutionTime;
     private long taskFinishedTime;
+    private final String identifier;
+    private boolean isComplete;
 
     private TaskMetrics(Builder builder) {
         this.taskClientSubmissionTime = builder.taskClientSubmissionTime;
         this.taskFinishedTime = builder.taskFinishedTime;
         this.taskStartsExecutionTime = builder.taskStartsExecutionTime;
         this.taskSubmissionCompletedTime = builder.taskSubmissionCompletedTime;
+        this.isComplete = builder.isComplete;
+        this.identifier = builder.identifier;
     }
 
     public long getTaskClientSubmissionTime() {
@@ -34,26 +39,26 @@ public class TaskMetrics {
         return taskFinishedTime;
     }
 
+    public boolean isComplete() {
+        return isComplete;
+    }
+
     /**
-     * @return
-     * {@link TaskMetrics#taskStartsExecutionTime} - {@link TaskMetrics#taskSubmissionCompletedTime}
+     * @return {@link TaskMetrics#taskStartsExecutionTime} - {@link TaskMetrics#taskSubmissionCompletedTime}
      */
     public long getTaskIdleTime() {
         return taskStartsExecutionTime - taskSubmissionCompletedTime;
     }
 
     /**
-     * @return
-     * {@link TaskMetrics#taskSubmissionCompletedTime} - {@link TaskMetrics#taskClientSubmissionTime}
+     * @return {@link TaskMetrics#taskSubmissionCompletedTime} - {@link TaskMetrics#taskClientSubmissionTime}
      */
     public long getTaskResponseTime() {
         return taskSubmissionCompletedTime - taskClientSubmissionTime;
     }
 
     /**
-     * @return
-     * {@link TaskMetrics#taskFinishedTime} - {@link TaskMetrics#taskStartsExecutionTime}
-     *
+     * @return {@link TaskMetrics#taskFinishedTime} - {@link TaskMetrics#taskStartsExecutionTime}
      */
     public long getTaskProcessingTime() {
         return taskFinishedTime - taskStartsExecutionTime;
@@ -67,6 +72,19 @@ public class TaskMetrics {
         return getTaskIdleTime() + getTaskResponseTime() + getTaskProcessingTime();
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TaskMetrics that = (TaskMetrics) o;
+        return Objects.equals(identifier, that.identifier);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(identifier);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -77,8 +95,19 @@ public class TaskMetrics {
         private long taskSubmissionCompletedTime;
         private long taskStartsExecutionTime;
         private long taskFinishedTime;
+        private boolean isComplete;
+        private String identifier;
 
         private Builder() {
+        }
+
+        public Builder complete(boolean isComplete) {
+            this.isComplete = isComplete;
+            return this;
+        }
+
+        public boolean isComplete() {
+            return isComplete;
         }
 
         public Builder withTaskClientSubmissionTime(long timestamp) {
@@ -98,6 +127,11 @@ public class TaskMetrics {
 
         public Builder withTaskFinishedTime(long timestamp) {
             this.taskFinishedTime = timestamp;
+            return this;
+        }
+
+        public Builder withIdentifier(String identifier) {
+            this.identifier = identifier;
             return this;
         }
 

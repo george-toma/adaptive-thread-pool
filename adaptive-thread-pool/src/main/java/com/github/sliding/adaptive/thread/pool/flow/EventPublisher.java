@@ -3,35 +3,25 @@ package com.github.sliding.adaptive.thread.pool.flow;
 import com.github.sliding.adaptive.thread.pool.listener.event.Event;
 import lombok.extern.log4j.Log4j2;
 
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.SubmissionPublisher;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 @Log4j2
 public abstract class EventPublisher extends SubmissionPublisher<Event> {
-    protected final String sharedEventPublisherName;
+    protected final String eventPublisherName;
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
-    public EventPublisher(Executor executor, int maxBufferCapacity, String sharedEventPublisherName) {
-        super(executor, maxBufferCapacity);
-        this.sharedEventPublisherName = sharedEventPublisherName;
-        SharedEventPublisher.store(this, sharedEventPublisherName);
-    }
-
-    public EventPublisher() {
+    public EventPublisher(String eventPublisherName) {
         super(Executors.newSingleThreadExecutor(), EventFlowConstant.EVENT_PUBLISHER_QUEUE_SIZE);
-        this.sharedEventPublisherName = SharedEventPublisher.DEFAULT_EVENT_PUBLISHER;
-        SharedEventPublisher.store(this, sharedEventPublisherName);
-    }
-
-    public EventPublisher(Executor executor, int maxBufferCapacity) {
-        super(executor, maxBufferCapacity);
-        this.sharedEventPublisherName = SharedEventPublisher.DEFAULT_EVENT_PUBLISHER;
-        SharedEventPublisher.store(this, sharedEventPublisherName);
+        this.eventPublisherName = eventPublisherName;
     }
 
     /**
      * Publishes the given item to each current subscriber by
-     * asynchronously invoking its {@link Flow.Subscriber#onNext(Object)
+     * asynchronously invoking its {@link java.util.concurrent.Flow.Subscriber#onNext(Object)
      * onNext} method, blocking uninterruptibly while resources for any
      * subscriber are unavailable. This method returns an estimate of
      * the maximum lag (number of items submitted but not yet consumed)
@@ -53,12 +43,27 @@ public abstract class EventPublisher extends SubmissionPublisher<Event> {
      */
     @Override
     public int submit(Event item) {
-        log.debug("Event [{}] was published", item);
-        return super.submit(item);
+        if (!isClosed()) {
+            readWriteLock.readLock().lock();
+            try {
+                if (!isClosed()) {
+                    log.debug("Event [{}] was published", item);
+                    return super.submit(item);
+                }
+            } finally {
+                readWriteLock.readLock().unlock();
+            }
+        }
+        return 0;
     }
 
-    public void close() {
-        super.close();
-        SharedEventPublisher.remove(sharedEventPublisherName);
+    public void shutdown() {
+        readWriteLock.writeLock().lock();
+        try {
+            close();
+            ((ExecutorService) getExecutor()).shutdown();
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
     }
 }

@@ -17,7 +17,8 @@ public class EventFilterProcessor
     private Flow.Subscription subscription;
 
 
-    EventFilterProcessor(Predicate<Event> predicate) {
+    public EventFilterProcessor(Predicate<Event> predicate) {
+        super(null);
         this.predicate = predicate;
     }
 
@@ -47,6 +48,7 @@ public class EventFilterProcessor
      */
     @Override
     public void onNext(Event item) {
+        log.info("Processor received event [{}]", item);
         if (predicate.test(item)) {
             submit(item);
         }

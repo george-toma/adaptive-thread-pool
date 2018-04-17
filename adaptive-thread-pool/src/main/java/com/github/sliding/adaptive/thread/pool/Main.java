@@ -13,36 +13,63 @@ public class Main {
                 System.out.println("Hello Adaptive!! ");
             }
         });
-        adaptiveThreadPool.shutdown();
+        // adaptiveThreadPool.shutdown();
+        for (int i = 0; i < 1000; i++)
+            adaptiveThreadPool.execute(new Task() {
+                @Override
+                public void run() {
+                    System.out.println("Hello Adaptive!! ");
+                }
+            });
 
-        AdaptiveThreadPool adaptiveThreadPool2 = new AdaptiveThreadPool();
-        adaptiveThreadPool2.execute(new Task() {
+        adaptiveThreadPool.execute(new Task() {
             @Override
             public void run() {
-                System.out.println("Hello Adaptive 2!! ");
+                System.out.println("Hello Adaptive!! ");
             }
         });
-        adaptiveThreadPool2.shutdown();
 
-
-        adaptiveThreadPool2 = new AdaptiveThreadPool();
-        adaptiveThreadPool2.execute(new Task() {
+        adaptiveThreadPool.execute(new Task() {
             @Override
             public void run() {
-                System.out.println("Hello Adaptive 3!! ");
+                System.out.println("Hello Adaptive!! ");
             }
         });
-        adaptiveThreadPool2.shutdown();
 
 
-        adaptiveThreadPool2 = new AdaptiveThreadPool();
-        adaptiveThreadPool2.execute(new Task() {
+        adaptiveThreadPool.execute(new Task() {
             @Override
             public void run() {
-                System.out.println("Hello Adaptive 4!! ");
+                System.out.println("Hello Adaptive!! ");
             }
         });
-        adaptiveThreadPool2.shutdown();
+//        AdaptiveThreadPool adaptiveThreadPool2 = new AdaptiveThreadPool();
+//        adaptiveThreadPool2.execute(new Task() {
+//            @Override
+//            public void run() {
+//                System.out.println("Hello Adaptive 2!! ");
+//            }
+//        });
+//        adaptiveThreadPool2.shutdown();
+
+//
+//        adaptiveThreadPool2 = new AdaptiveThreadPool();
+//        adaptiveThreadPool2.execute(new Task() {
+//            @Override
+//            public void run() {
+//                System.out.println("Hello Adaptive 3!! ");
+//            }
+//        });
+//        adaptiveThreadPool2.shutdown();
+//
+//        adaptiveThreadPool2 = new AdaptiveThreadPool();
+//        adaptiveThreadPool2.execute(new Task() {
+//            @Override
+//            public void run() {
+//                System.out.println("Hello Adaptive 4!! ");
+//            }
+//        });
+//        adaptiveThreadPool2.shutdown();
 
 
     }
