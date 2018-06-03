@@ -4,7 +4,6 @@ import com.github.sliding.adaptive.thread.pool.Timestamp;
 import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
 
 public interface Event {
-    long TIMESTAMP = Timestamp.getTimestamp();
 
     String getIdentifier();
 
@@ -13,6 +12,6 @@ public interface Event {
     TaskWorker getTaskWorker();
 
     default long timestamp() {
-        return TIMESTAMP;
+        return Timestamp.getTimestamp();
     }
 }

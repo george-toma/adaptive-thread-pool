@@ -1,6 +1,5 @@
 package com.github.sliding.adaptive.thread.pool.flow.subscriber.concrete;
 
-import com.github.sliding.adaptive.thread.pool.flow.EventFlowConstant;
 import com.github.sliding.adaptive.thread.pool.flow.subscriber.EventSubscriber;
 import com.github.sliding.adaptive.thread.pool.listener.event.Event;
 import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
@@ -21,9 +20,8 @@ public class TaskClientSubmissionTimeSubscriber extends EventSubscriber {
         if (builder.isPresent()) {
             builder.get()
                     .withTaskClientSubmissionTime(event.timestamp());
-            //request new messages
-            subscription.request(EventFlowConstant.NUMBER_OF_MESSAGES_TO_DEMAND);
         }
+        super.onNext(event);
     }
 
     @Override

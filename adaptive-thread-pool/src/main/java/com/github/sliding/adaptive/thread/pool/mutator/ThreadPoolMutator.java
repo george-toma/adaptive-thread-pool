@@ -19,6 +19,4 @@ public interface ThreadPoolMutator {
      *
      */
     void mutateThreadPoolSize(String... metricsIdentifiers);
-
-    void increaseThreadPool();
 }

@@ -1,0 +1,26 @@
+package com.github.sliding.adaptive.thread.pool.management.worker;
+
+import com.github.sliding.adaptive.thread.pool.factory.thread.AdaptiveThreadFactory;
+import com.github.sliding.adaptive.thread.pool.factory.thread.AdaptiveThreadFactoryBuilder;
+
+abstract class AbstractTaskWorkerManagement {
+    protected TaskWorkerState taskWorkerState;
+    protected final String threadPoolIdentifier;
+    protected final AdaptiveThreadFactory adaptiveThreadFactory;
+
+
+    public AbstractTaskWorkerManagement(String threadPoolIdentifier, TaskWorkerState taskWorkerState) {
+        if (taskWorkerState == null || threadPoolIdentifier == null) {
+            throw new NullPointerException();
+        }
+        this.taskWorkerState = taskWorkerState;
+        this.adaptiveThreadFactory = AdaptiveThreadFactoryBuilder
+                .builder()
+                .withDaemon(false)
+                .withThreadPoolIdentifier(threadPoolIdentifier)
+                .withPriority(Thread.NORM_PRIORITY)
+                .build();
+        this.threadPoolIdentifier = threadPoolIdentifier;
+    }
+    
+}

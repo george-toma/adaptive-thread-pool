@@ -1,5 +1,6 @@
 package com.github.sliding.adaptive.thread.pool.factory.thread;
 
+
 public final class AdaptiveThreadFactoryBuilder {
 
     private static final String THREAD_NAME_PREFIX = "adaptive-worker-thread-";
@@ -11,16 +12,24 @@ public final class AdaptiveThreadFactoryBuilder {
     private AdaptiveThreadFactoryBuilder() {
     }
 
-    public static AdaptiveThreadFactoryBuilder builder() {
-        return new AdaptiveThreadFactoryBuilder();
+    public String getNamePrefix() {
+        return namePrefix;
     }
 
-    public static AdaptiveThreadFactory buildDefault(String threadPoolIdentifier) {
-        return builder()
-                .withDaemon(false)
-                .withThreadPoolIdentifier(threadPoolIdentifier)
-                .withPriority(Thread.NORM_PRIORITY)
-                .build();
+    public boolean isDaemon() {
+        return isDaemon;
+    }
+
+    public int getPriority() {
+        return priority;
+    }
+
+    public String getThreadPoolIdentifier() {
+        return threadPoolIdentifier;
+    }
+
+    public static AdaptiveThreadFactoryBuilder builder() {
+        return new AdaptiveThreadFactoryBuilder();
     }
 
     public AdaptiveThreadFactoryBuilder withNamePrefix(String namePrefix) {
@@ -35,6 +44,7 @@ public final class AdaptiveThreadFactoryBuilder {
         this.isDaemon = isDaemon;
         return this;
     }
+
 
     public AdaptiveThreadFactoryBuilder withThreadPoolIdentifier(String threadPoolIdentifier) {
         this.threadPoolIdentifier = threadPoolIdentifier;
@@ -53,7 +63,7 @@ public final class AdaptiveThreadFactoryBuilder {
     }
 
     public AdaptiveThreadFactory build() {
-        return new AdaptiveThreadFactory(threadPoolIdentifier, namePrefix, priority, isDaemon);
+        return new AdaptiveThreadFactory(this);
     }
 
 

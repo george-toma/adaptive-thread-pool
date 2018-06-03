@@ -106,6 +106,10 @@ public class TaskMetrics {
             return this;
         }
 
+        public String identifier() {
+            return identifier;
+        }
+
         public boolean isComplete() {
             return isComplete;
         }
@@ -123,6 +127,14 @@ public class TaskMetrics {
         public Builder withTaskStartsExecutionTime(long timestamp) {
             this.taskStartsExecutionTime = timestamp;
             return this;
+        }
+
+        public long getTaskStartsExecutionTime() {
+            return taskStartsExecutionTime;
+        }
+
+        public long getTaskFinishedTime() {
+            return taskFinishedTime;
         }
 
         public Builder withTaskFinishedTime(long timestamp) {

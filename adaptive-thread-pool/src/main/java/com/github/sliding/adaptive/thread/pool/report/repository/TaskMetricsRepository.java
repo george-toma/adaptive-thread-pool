@@ -18,6 +18,12 @@ public final class TaskMetricsRepository {
         SharedMetricsRepository.store(this, repositoryName);
     }
 
+    public void removeTaskMetric(String identifier) {
+        if (!repositoryState.isClosed()) {
+            repositoryState.remove(identifier);
+        }
+    }
+
     public Optional<TaskMetrics.Builder> loadTaskBuilder(String identifier) {
         if (!repositoryState.isClosed()) {
             return Optional.ofNullable((TaskMetrics.Builder) repositoryState.get(identifier));
@@ -32,29 +38,14 @@ public final class TaskMetricsRepository {
         }
     }
 
-
-    public TaskMetrics load() {
-        TaskMetrics taskMetrics = null;
-        if (!repositoryState.isClosed()) {
-            Iterator<CacheEntry<String, TaskMetrics.Builder>> iterator = (Iterator<CacheEntry<String, TaskMetrics.Builder>>)
-                    repositoryState.iterator();
-            while (iterator.hasNext()) {
-                TaskMetrics.Builder builder = iterator.next().getValue();
-                if (builder.isComplete()) {
-                    taskMetrics = builder.build();
-                    iterator.remove();
-                }
-            }
-        }
-        return taskMetrics;
-    }
-
     public TaskMetrics loadTaskMetric(String metricIdentifier) {
         if (!repositoryState.isClosed()) {
             TaskMetrics.Builder builder = (TaskMetrics.Builder) repositoryState.get(metricIdentifier);
-            TaskMetrics taskMetrics = builder.build();
-            repositoryState.remove(metricIdentifier);
-            return taskMetrics;
+            if (builder != null) {
+                TaskMetrics taskMetrics = builder.build();
+                repositoryState.remove(metricIdentifier);
+                return taskMetrics;
+            }
         }
         return null;
     }

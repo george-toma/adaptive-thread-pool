@@ -1,6 +1,5 @@
 package com.github.sliding.adaptive.thread.pool.flow.subscriber.concrete;
 
-import com.github.sliding.adaptive.thread.pool.flow.EventFlowConstant;
 import com.github.sliding.adaptive.thread.pool.flow.subscriber.EventSubscriber;
 import com.github.sliding.adaptive.thread.pool.listener.event.Event;
 import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
@@ -22,9 +21,9 @@ public class TaskStartsExecutionEventSubscriber extends EventSubscriber {
             builder.get()
                     .withTaskStartsExecutionTime(event.timestamp())
                     .complete(true);
-            subscription.request(EventFlowConstant.NUMBER_OF_MESSAGES_TO_DEMAND);
             threadPoolMutator.mutateThreadPoolSize(event.getIdentifier());
         }
+        super.onNext(event);
     }
 
     @Override

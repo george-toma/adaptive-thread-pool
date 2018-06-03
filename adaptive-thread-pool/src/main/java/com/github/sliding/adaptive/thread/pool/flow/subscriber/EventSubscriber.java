@@ -17,12 +17,12 @@ public abstract class EventSubscriber implements Flow.Subscriber<Event> {
 
     protected Flow.Subscription subscription;
     protected final String threadPoolIdentifier;
-    protected final Optional<TaskMetricsRepository> taskMetricsRepository;
+    protected final TaskMetricsRepository taskMetricsRepository;
     protected final ThreadPoolMutator threadPoolMutator;
 
     public EventSubscriber(String threadPoolIdentifier, ThreadPoolMutator threadPoolMutator) {
         this.threadPoolIdentifier = threadPoolIdentifier;
-        this.taskMetricsRepository = SharedMetricsRepository.load(threadPoolIdentifier);
+        this.taskMetricsRepository = SharedMetricsRepository.load(threadPoolIdentifier).get();
         this.threadPoolMutator = threadPoolMutator;
     }
 
@@ -35,6 +35,8 @@ public abstract class EventSubscriber implements Flow.Subscriber<Event> {
     @Override
     public void onNext(Event event) {
         log.trace("Subscriber onNext event [{}]", event);
+        //request new messages
+        subscription.request(EventFlowConstant.NUMBER_OF_MESSAGES_TO_DEMAND);
     }
 
     @Override
@@ -47,14 +49,16 @@ public abstract class EventSubscriber implements Flow.Subscriber<Event> {
         log.debug("Event completed");
     }
 
-    protected Optional<TaskMetrics.Builder> loadTaskMetrics(Event event) {
-        if (taskMetricsRepository.isPresent()) {
-            return taskMetricsRepository
-                    .get()
-                    .loadTaskBuilder(event.getIdentifier());
-        } else {
-            return Optional.empty();
-        }
+    protected final Optional<TaskMetrics.Builder> loadTaskMetrics(Event event) {
+        return taskMetricsRepository
+                .loadTaskBuilder(event.getIdentifier());
+
+
+    }
+
+    protected final void removeTaskMetric(Event event, String identifier) {
+        taskMetricsRepository.removeTaskMetric(identifier);
+        log.info("Event [{}] removed task metric [identifier: {}] from pipeline processing", event, identifier);
 
     }
 

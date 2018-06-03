@@ -5,6 +5,7 @@ import com.github.sliding.adaptive.thread.pool.flow.EventPublisher;
 import com.github.sliding.adaptive.thread.pool.flow.SharedEventPublisher;
 import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
 import com.github.sliding.adaptive.thread.pool.listener.event.task.TaskEvent;
+import com.github.sliding.adaptive.thread.pool.management.Command;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.Optional;
@@ -12,51 +13,68 @@ import java.util.Optional;
 @Log4j2
 public class TaskWorker extends Thread {
 
-    private Task task;
     private final String threadPoolIdentifier;
+    private final Command<Task> taskCommand;
 
     /**
-     * Allocates a new {@code Thread} object. This constructor has the same
-     * effect as {@linkplain #Thread(ThreadGroup, Runnable, String) Thread}
-     * {@code (null, null, gname)}, where {@code gname} is a newly generated
-     * name. Automatically generated names are of the form
-     * {@code "Thread-"+}<i>n</i>, where <i>n</i> is an integer.
+     * {@inheritDoc}
      */
-    public TaskWorker(String threadPoolIdentifier) {
+    public TaskWorker(String threadPoolIdentifier, Command<Task> taskCommand, String threadName) {
+        super(threadName);
         this.threadPoolIdentifier = threadPoolIdentifier;
-    }
-
-    public void setTask(Task task) {
-        this.task = task;
+        this.taskCommand = taskCommand;
     }
 
     @Override
     public void run() {
-        if (task == null) {
-            return;
-        }
+        Task task = null;
         //avoid threads leaking
         try {
             //check for shutdown
-            if (!isInterrupted()) {
-                task.run();
+            while (!isInterrupted()) {
+                Optional<Task> taskOptional = Optional.ofNullable(taskCommand.remove());
+                if (taskOptional.isPresent()) {
+                    task = taskOptional.get();
+                    beforeExecute(task);
+                    task.run();
+                }
             }
 
-        } catch (RuntimeException | Error ex) {
-            log.warn("Could not execute subscriber [{}]", task, ex);
+        } catch (RuntimeException ex) {
+            log.warn("Could not execute task [{}]", task, ex);
+            //do not rethrow the exception to avoid leaking threads from pool
+            //TODO push this exception to an exceptionHandler
         } finally {
-            final String identifier = task.identifier();
-            task = null;
-            Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
-            if (eventPublisher.isPresent()) {
-                eventPublisher.get()
-                        .submit(TaskEvent.Builder
-                                .describedAs()
-                                .eventType(EventType.TASK_FINISHED_TIME)
-                                .taskWorker(this)
-                                .identifier(identifier)
-                                .createEvent());
+            log.info("Thread [{}] was interrupted", getName());
+            if (task != null) {
+                afterExecute(task);
             }
+        }
+    }
+
+    private void afterExecute(Task task) {
+        final String identifier = task.identifier();
+        Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
+        if (eventPublisher.isPresent()) {
+            eventPublisher.get()
+                    .submit(TaskEvent.Builder
+                            .describedAs()
+                            .eventType(EventType.TASK_FINISHED_TIME)
+                            .taskWorker(this)
+                            .identifier(identifier)
+                            .createEvent());
+        }
+    }
+
+    private void beforeExecute(Task task) {
+        Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
+        if (eventPublisher.isPresent()) {
+            eventPublisher.get()
+                    .submit(TaskEvent.Builder
+                            .describedAs()
+                            .eventType(EventType.TASK_STARTS_EXECUTION)
+                            .identifier(task.identifier())
+                            .createEvent());
         }
     }
 }

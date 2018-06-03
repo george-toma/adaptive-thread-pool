@@ -2,8 +2,6 @@ package com.github.sliding.adaptive.thread.pool;
 
 import com.github.sliding.adaptive.thread.pool.exception.ShutdownThreadPoolException;
 import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
-import com.github.sliding.adaptive.thread.pool.factory.thread.AdaptiveThreadFactory;
-import com.github.sliding.adaptive.thread.pool.factory.thread.AdaptiveThreadFactoryBuilder;
 import com.github.sliding.adaptive.thread.pool.flow.EventFlowType;
 import com.github.sliding.adaptive.thread.pool.flow.EventPublisher;
 import com.github.sliding.adaptive.thread.pool.flow.SharedEventPublisher;
@@ -12,10 +10,11 @@ import com.github.sliding.adaptive.thread.pool.flow.processor.EventFilterProcess
 import com.github.sliding.adaptive.thread.pool.flow.subscriber.EventSubscriber;
 import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
 import com.github.sliding.adaptive.thread.pool.listener.event.task.TaskEvent;
+import com.github.sliding.adaptive.thread.pool.management.Command;
+import com.github.sliding.adaptive.thread.pool.management.PoolManagementFacade;
+import com.github.sliding.adaptive.thread.pool.management.Query;
 import com.github.sliding.adaptive.thread.pool.mutator.EuclideanDistanceMutator;
 import com.github.sliding.adaptive.thread.pool.mutator.ThreadPoolMutator;
-import com.github.sliding.adaptive.thread.pool.queue.ThreadPoolQueueManagement;
-import com.github.sliding.adaptive.thread.pool.queue.ThreadPoolQueueState;
 import com.github.sliding.adaptive.thread.pool.report.metric.TaskMetrics;
 import com.github.sliding.adaptive.thread.pool.report.repository.TaskMetricsRepository;
 import lombok.extern.log4j.Log4j2;
@@ -24,9 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -38,31 +35,17 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class AdaptiveThreadPool {
 
     private final String threadPoolIdentifier;
-    private final ThreadPoolQueueManagement threadPoolQueueManagement;
-    /**
-     * Lock held on access to workers set and related bookkeeping. While we
-     * could use a concurrent set of some sort, it turns out to be generally
-     * preferable to use a lock. Among the reasons is that this serializes
-     * interruptIdleWorkers, which avoids unnecessary interrupt storms,
-     * especially during shutdown. Otherwise exiting threads would concurrently
-     * interrupt those that have not yet interrupted. It also simplifies some of
-     * the associated statistics bookkeeping of largestPoolSize etc. We also
-     * hold mainLock on shutdown and shutdownNow, for the sake of ensuring
-     * workers set is stable while separately checking permission to interrupt
-     * and actually interrupting.
-     */
-    private final ReentrantLock mainLock = new ReentrantLock();
-    private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
-    private final Lock readLock = rwl.readLock();
-    private final Lock writeLock = rwl.writeLock();
-    private final long keepAliveTime;
-    private int offsetStartingThreads;
-    private final AdaptiveThreadFactory threadFactory;
-    private final RejectedExecutionHandler rejectedExecutionHandler;
+    private final PoolManagementFacade poolManagementFacade;
+    private final Command<TaskWorker> taskWorkerCommand;
+    private final Command<Task> taskCommand;
+    private final Query taskWorkerQuery;
+    private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private final Lock shutdownReadLock = readWriteLock.readLock();
+    private final Lock shutdownWriteLock = readWriteLock.writeLock();
     private final ThreadPoolMutator threadPoolMutator;
     private final TaskMetricsRepository taskMetricsRepository;
     private final EventPublisher eventPublisher;
-    private AtomicBoolean shutdown = new AtomicBoolean(Boolean.FALSE);
+    private State currentState = State.RUNNING;
 
     /**
      * Creates a new {@code AdaptiveThreadPool} with the given initial
@@ -70,59 +53,39 @@ public class AdaptiveThreadPool {
      * may be more convenient to use one of the {@link Executors} factory
      * methods instead of this general purpose constructor.
      *
-     * @param offsetStartingThreads the number of threads used to start the
-     *                              thread pool. Default value is 1.
-     * @param tasksQueue            the queue to use for holding tasks before they are
-     *                              executed. This queue will hold only the {@code Runnable} tasks submitted
-     *                              by the {@code execute} method.
+     * @param tasksQueue the management to use for holding tasks before they are
+     *                   executed. This management will hold only the {@code {@link Task}} tasks submitted
+     *                   by the {@code execute} method.
      */
-    public AdaptiveThreadPool(int offsetStartingThreads,
-                              long keepAliveTime,
-                              TimeUnit unit,
-                              BlockingQueue<Task> tasksQueue,
-                              RejectedExecutionHandler handler) {
-        this(offsetStartingThreads, keepAliveTime, unit, tasksQueue,
-                handler, UUID.randomUUID().toString());
+    public AdaptiveThreadPool(BlockingQueue<Task> tasksQueue) {
+        this(tasksQueue, null, UUID.randomUUID().toString());
     }
 
     public AdaptiveThreadPool() {
-        this(1, 500, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(), null, UUID.randomUUID().toString());
+        this(new SynchronousQueue<>(), null, UUID.randomUUID().toString());
     }
 
-    private AdaptiveThreadPool(int offsetStartingThreads,
-                               long keepAliveTime,
-                               TimeUnit unit,
-                               BlockingQueue<Task> tasksQueue,
+    private AdaptiveThreadPool(BlockingQueue<Task> tasksQueue,
                                RejectedExecutionHandler handler,
                                String threadPoolIdentifier) {
-        if (offsetStartingThreads <= 0) {
-            offsetStartingThreads = 1;
-        }
-        //FIXME  "|| handler == null" on if
-        if (tasksQueue == null || threadPoolIdentifier == null) {
-            throw new NullPointerException();
-        }
 
         this.threadPoolIdentifier = threadPoolIdentifier;
-        this.offsetStartingThreads = offsetStartingThreads;
-        this.keepAliveTime = unit.toNanos(keepAliveTime);
-        this.threadFactory = AdaptiveThreadFactoryBuilder.buildDefault(threadPoolIdentifier);
-        this.rejectedExecutionHandler = handler;
         eventPublisher = new TaskEventPublisher(threadPoolIdentifier);
         taskMetricsRepository = new TaskMetricsRepository(threadPoolIdentifier);
-        ThreadPoolQueueState queueState = new ThreadPoolQueueState(new LinkedBlockingQueue<>(),
-                tasksQueue);
-        threadPoolQueueManagement = new ThreadPoolQueueManagement(threadFactory, queueState);
-        this.threadPoolMutator = new EuclideanDistanceMutator(threadPoolIdentifier,
-                threadFactory, threadPoolQueueManagement);
+
+        poolManagementFacade = new PoolManagementFacade(threadPoolIdentifier, tasksQueue);
+        taskWorkerCommand = poolManagementFacade.doManagement(PoolManagementFacade.ManagementType.TASK_WORKER_COMMAND);
+        taskCommand = poolManagementFacade.doManagement(PoolManagementFacade.ManagementType.TASK_COMMAND);
+        taskWorkerQuery = poolManagementFacade.doQuery(PoolManagementFacade.ManagementType.TASK_WORKET_QUERY);
+
+        this.threadPoolMutator = new EuclideanDistanceMutator(threadPoolIdentifier, taskWorkerCommand, taskWorkerQuery);
         initEventFlow();
         initDefaultThreads();
     }
 
     private void initDefaultThreads() {
         final int cpuSize = Runtime.getRuntime().availableProcessors();
-        threadPoolQueueManagement.addWorkers(cpuSize);
+        taskWorkerCommand.add(new TaskWorker[cpuSize]);
     }
 
     private void initEventFlow() {
@@ -132,55 +95,94 @@ public class AdaptiveThreadPool {
             eventPublisher.subscribe(processor);
             processor.subscribe(subscriber);
         }
-//        final EventFilterProcessor eventFilterTaskFinishedProcessor =
-//                EventFlowType.TASK_FINISHED_TIME.processor();
-//        final EventFilterProcessor eventFilterTaskClientSubmissionTimeProcessor =
-//                EventFlowType.TASK_CLIENT_SUBMISSION_TIME.processor();
-//
-//        final EventSubscriber taskFinishedSubscriber = EventFlowType.TASK_FINISHED_TIME.subscriber(threadPoolIdentifier);
-//        final EventSubscriber taskClientSubmissionTimeSubscriber = EventFlowType.TASK_CLIENT_SUBMISSION_TIME.subscriber(threadPoolIdentifier);
-//        final EventSubscriber taskStartsExecutionEventSubscriber = EventFlowType.TASK_STARTS_EXECUTION.subscriber(threadPoolIdentifier);
-//        final EventSubscriber taskSubmissionCompletedTimeSubscriber = EventFlowType.TASK_SUBMISSION_COMPLETED_TIME.subscriber(threadPoolIdentifier);
-//
-//        eventPublisher.subscribe(eventFilterTaskFinishedProcessor);
-//        eventPublisher.subscribe(eventFilterTaskClientSubmissionTimeProcessor);
-//        eventFilterTaskFinishedProcessor.subscribe(taskFinishedSubscriber);
-//        eventFilterTaskClientSubmissionTimeProcessor.subscribe(taskClientSubmissionTimeSubscriber);
     }
 
+    /**
+     * Initiates an orderly shutdown in which previously submitted
+     * tasks are executed, but no new tasks will be accepted.
+     * Invocation has no additional effect if already shut down.
+     *
+     * <p>This method does not wait for previously submitted tasks to
+     * complete execution.
+     *
+     * @throws SecurityException
+     */
     public void shutdown() {
-        //do not accept any other new tasks
-        shutdown.set(Boolean.TRUE);
-        threadPoolQueueManagement.clear();
-        taskMetricsRepository.shutdownRepository();
-        eventPublisher.shutdown();
-
+        shutdownWriteLock.lock();
+        try {
+            advanceRunState(State.STOP);
+            taskMetricsRepository.shutdownRepository();
+            poolManagementFacade.shutdownAll();
+            eventPublisher.shutdown();
+        } finally {
+            shutdownWriteLock.unlock();
+        }
     }
 
-    public List<Runnable> shutdownNow() {
-        shutdown.set(Boolean.TRUE);
-        return null;
+    /**
+     * Attempts to stop all actively executing tasks, halts the
+     * processing of waiting tasks, and returns a list of the tasks
+     * that were awaiting execution. These tasks are drained (removed)
+     * from the task management upon return from this method.
+     *
+     * <p>This method does not wait for actively executing tasks to
+     * terminate.  Use {@link #awaitTermination awaitTermination} to
+     * do that.
+     *
+     * <p>There are no guarantees beyond best-effort attempts to stop
+     * processing actively executing tasks.  This implementation
+     * interrupts tasks via {@link Thread#interrupt}; any task that
+     * fails to respond to interrupts may never terminate.
+     *
+     * @throws SecurityException
+     */
+    public List<Task> shutdownNow() {
+        List<Task> tasks;
+        shutdownWriteLock.lock();
+        try {
+            advanceRunState(State.STOP);
+            taskMetricsRepository.shutdownRepository();
+            tasks = poolManagementFacade.shutdownAll();
+            eventPublisher.shutdown();
+        } finally {
+            shutdownWriteLock.unlock();
+        }
+        return tasks;
+    }
+
+    private void advanceRunState(State state) {
+        currentState = state;
     }
 
     public boolean isShutdown() {
-        return shutdown.get();
+        shutdownReadLock.lock();
+        try {
+            return currentState == State.STOP
+                    || currentState == State.TERMINATED
+                    || currentState == State.TIDYING;
+        } finally {
+            shutdownReadLock.unlock();
+        }
     }
 
     public boolean isTerminated() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return currentState == State.TERMINATED;
     }
 
-    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
+    /**
+     * Executes the given command at some time in the future.  The command
+     * may execute in a pooled thread.
+     *
+     * @param task the runnable task
+     * @throws RejectedExecutionException if this task cannot be
+     *                                    accepted for execution
+     * @throws NullPointerException       if {@code task} is null
+     */
     public void execute(Task task) {
         if (task == null) {
             throw new NullPointerException();
         }
-        //FIXME - I migh need a readWrite reentrant lock here too for shutdown
         if (isShutdown()) {
-            log.debug("Adaptive thread pool is shutdown");
             throw new ShutdownThreadPoolException("Cannot operate on a shutdown thread pool");
         } else {
             //TODO make metrics events to be done via AOP with annotations
@@ -188,9 +190,7 @@ public class AdaptiveThreadPool {
             storeTaskMetrics(task);
             beforeStoreTask(task);
             addTaskToQueue(task);
-            executeTask();
         }
-
     }
 
     private void storeTaskMetrics(Task task) {
@@ -225,48 +225,38 @@ public class AdaptiveThreadPool {
         }
     }
 
-    private void beforeExecute(Task task) {
-        Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
-        if (eventPublisher.isPresent()) {
-            eventPublisher.get()
-                    .submit(TaskEvent.Builder
-                            .describedAs()
-                            .eventType(EventType.TASK_STARTS_EXECUTION)
-                            .identifier(task.identifier())
-                            .createEvent());
-        }
-    }
-
-    private void executeTask() {
-        while (!Thread.interrupted() || isShutdown()) {
-            TaskWorker worker = null;
-            try {
-                worker = threadPoolQueueManagement.pollTask(500L, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException ex) {
-                log.warn("Could not pollTask worker", ex);
-            }
-            //no worker available
-            if (worker == null) {
-                threadPoolMutator.increaseThreadPool();
-                //TODO sa adaug in proiect ce am vorbit cu Ionut
-            } else {
-                Optional<Task> task = Optional.ofNullable(threadPoolQueueManagement.pollTask());
-                if (task.isPresent()) {
-                    beforeExecute(task.get());
-                    worker.setTask(task.get());
-                    worker.start();
-                } else {
-                    break;
-                }
-            }
-        }
-
-    }
-
     private void addTaskToQueue(Task command) {
-        threadPoolQueueManagement.addTask(command);
+        taskCommand.add(command);
         afterStoringTask(command);
     }
 
-
+    /**
+     * The {@link State} provides the main lifecycle control, taking on values:
+     * <p>
+     * {@code RUNNING}:  Accept new tasks and process queued tasks
+     * {@code STOP}:     Don't accept new tasks, don't process queued tasks,
+     * and interrupt in-progress tasks
+     * TIDYING:  All tasks have terminated, workerCount is zero,
+     * the thread transitioning to state TIDYING
+     * will run the terminated() hook method
+     * TERMINATED: terminated() has completed
+     * <p>
+     * The state transitions are:
+     * <p>
+     * RUNNING -> STOP
+     * On invocation of shutdown().
+     * STOP -> TIDYING
+     * When both queue and pool are empty
+     * TIDYING -> TERMINATED
+     * When the terminated() hook method has completed
+     * <p>
+     * Threads waiting in awaitTermination() will return when the
+     * state reaches TERMINATED.
+     */
+    private enum State {
+        RUNNING,
+        STOP,
+        TIDYING,
+        TERMINATED
+    }
 }
