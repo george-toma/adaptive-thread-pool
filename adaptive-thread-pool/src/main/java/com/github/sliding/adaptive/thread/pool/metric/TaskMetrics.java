@@ -1,26 +1,35 @@
-package com.github.sliding.adaptive.thread.pool.report.metric;
+package com.github.sliding.adaptive.thread.pool.metric;
+
+import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 
 import java.util.Objects;
 
 /**
  * @author george-toma
  */
-public class TaskMetrics {
+public final class TaskMetrics {
 
     private long taskClientSubmissionTime;
     private long taskSubmissionCompletedTime;
     private long taskStartsExecutionTime;
     private long taskFinishedTime;
-    private final String identifier;
-    private boolean isComplete;
+    private String taskId;
 
     private TaskMetrics(Builder builder) {
         this.taskClientSubmissionTime = builder.taskClientSubmissionTime;
         this.taskFinishedTime = builder.taskFinishedTime;
         this.taskStartsExecutionTime = builder.taskStartsExecutionTime;
         this.taskSubmissionCompletedTime = builder.taskSubmissionCompletedTime;
-        this.isComplete = builder.isComplete;
-        this.identifier = builder.identifier;
+        this.taskId = builder.taskId();
+    }
+
+    public String getTaskId() {
+        return taskId;
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     public long getTaskClientSubmissionTime() {
@@ -37,10 +46,6 @@ public class TaskMetrics {
 
     public long getTaskFinishedTime() {
         return taskFinishedTime;
-    }
-
-    public boolean isComplete() {
-        return isComplete;
     }
 
     /**
@@ -77,16 +82,15 @@ public class TaskMetrics {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TaskMetrics that = (TaskMetrics) o;
-        return Objects.equals(identifier, that.identifier);
-    }
+        return taskClientSubmissionTime == that.taskClientSubmissionTime &&
+                taskSubmissionCompletedTime == that.taskSubmissionCompletedTime &&
+                taskStartsExecutionTime == that.taskStartsExecutionTime &&
+                taskFinishedTime == that.taskFinishedTime;}
 
     @Override
     public int hashCode() {
-        return Objects.hash(identifier);
-    }
 
-    public static Builder builder() {
-        return new Builder();
+        return Objects.hash(taskClientSubmissionTime, taskSubmissionCompletedTime, taskStartsExecutionTime, taskFinishedTime);
     }
 
     public static class Builder {
@@ -95,55 +99,40 @@ public class TaskMetrics {
         private long taskSubmissionCompletedTime;
         private long taskStartsExecutionTime;
         private long taskFinishedTime;
-        private boolean isComplete;
-        private String identifier;
+        private String taskId;
 
         private Builder() {
         }
 
-        public Builder complete(boolean isComplete) {
-            this.isComplete = isComplete;
-            return this;
-        }
 
-        public String identifier() {
-            return identifier;
-        }
 
-        public boolean isComplete() {
-            return isComplete;
-        }
-
-        public Builder withTaskClientSubmissionTime(long timestamp) {
-            this.taskClientSubmissionTime = timestamp;
-            return this;
+        public String taskId() {
+            return taskId;
         }
 
         public Builder withTaskSubmissionCompletedTime(long timestamp) {
             this.taskSubmissionCompletedTime = timestamp;
             return this;
         }
-
+        public Builder withMetrics(Task task){
+            for(EventType eventType:EventType.values()){
+                final long value = task.readMetric(eventType);
+                switch (eventType){
+                    case TASK_FINISHED_TIME:this.taskFinishedTime = value;break;
+                    case TASK_CLIENT_SUBMISSION_TIME:this.taskClientSubmissionTime = value;break;
+                    case TASK_STARTS_EXECUTION:this.taskStartsExecutionTime = value;break;
+                    case TASK_SUBMISSION_COMPLETED_TIME:this.taskSubmissionCompletedTime = value;break;
+                }
+            }
+            return this;
+        }
         public Builder withTaskStartsExecutionTime(long timestamp) {
             this.taskStartsExecutionTime = timestamp;
             return this;
         }
 
-        public long getTaskStartsExecutionTime() {
-            return taskStartsExecutionTime;
-        }
-
-        public long getTaskFinishedTime() {
-            return taskFinishedTime;
-        }
-
-        public Builder withTaskFinishedTime(long timestamp) {
-            this.taskFinishedTime = timestamp;
-            return this;
-        }
-
-        public Builder withIdentifier(String identifier) {
-            this.identifier = identifier;
+        public Builder withTaskId(String taskId) {
+            this.taskId = taskId;
             return this;
         }
 

@@ -1,5 +1,7 @@
 package com.github.sliding.adaptive.thread.pool.mutator;
 
+import com.github.sliding.adaptive.thread.pool.metric.TaskMetrics;
+
 /**
  * @author george-toma
  */
@@ -18,5 +20,5 @@ public interface ThreadPoolMutator {
     /**
      *
      */
-    void mutateThreadPoolSize(String... metricsIdentifiers);
+    void mutateThreadPoolSize(TaskMetrics... taskMetrics);
 }

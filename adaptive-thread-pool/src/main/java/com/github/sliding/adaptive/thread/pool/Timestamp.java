@@ -1,8 +1,6 @@
-
 package com.github.sliding.adaptive.thread.pool;
 
 /**
- *
  * @author spykee
  */
 public class Timestamp {

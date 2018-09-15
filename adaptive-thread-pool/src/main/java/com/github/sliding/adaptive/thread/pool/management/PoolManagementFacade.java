@@ -1,11 +1,13 @@
 package com.github.sliding.adaptive.thread.pool.management;
 
-import com.github.sliding.adaptive.thread.pool.Task;
 import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
 import com.github.sliding.adaptive.thread.pool.management.task.TaskCommand;
 import com.github.sliding.adaptive.thread.pool.management.task.TaskQuery;
 import com.github.sliding.adaptive.thread.pool.management.task.TaskState;
-import com.github.sliding.adaptive.thread.pool.management.worker.*;
+import com.github.sliding.adaptive.thread.pool.management.worker.TaskWorkerCommand;
+import com.github.sliding.adaptive.thread.pool.management.worker.TaskWorkerQuery;
+import com.github.sliding.adaptive.thread.pool.management.worker.TaskWorkerState;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -23,13 +25,6 @@ public final class PoolManagementFacade {
         this.taskQuery = new TaskQuery(taskState);
         this.workerCommand = new TaskWorkerCommand(identifier, taskWorkerState, taskCommand);
         this.workerQuery = new TaskWorkerQuery(identifier, taskWorkerState);
-    }
-
-    public enum ManagementType {
-        TASK_WORKER_COMMAND,
-        TASK_WORKET_QUERY,
-        TASK_QUERY,
-        TASK_COMMAND
     }
 
     public <T extends Command> T doManagement(ManagementType managementType) {
@@ -57,5 +52,12 @@ public final class PoolManagementFacade {
     public List<Task> shutdownAll() {
         workerCommand.shutdown();
         return taskCommand.shutdown();
+    }
+
+    public enum ManagementType {
+        TASK_WORKER_COMMAND,
+        TASK_WORKET_QUERY,
+        TASK_QUERY,
+        TASK_COMMAND
     }
 }

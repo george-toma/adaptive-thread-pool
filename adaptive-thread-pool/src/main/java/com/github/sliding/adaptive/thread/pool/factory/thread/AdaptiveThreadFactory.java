@@ -1,13 +1,11 @@
 package com.github.sliding.adaptive.thread.pool.factory.thread;
 
 
-import com.github.sliding.adaptive.thread.pool.Task;
 import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
 import com.github.sliding.adaptive.thread.pool.management.Command;
-import com.github.sliding.adaptive.thread.pool.management.PoolManagementFacade;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 import lombok.extern.log4j.Log4j2;
 
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Log4j2

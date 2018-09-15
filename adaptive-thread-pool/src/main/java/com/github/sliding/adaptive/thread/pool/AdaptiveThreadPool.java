@@ -4,23 +4,19 @@ import com.github.sliding.adaptive.thread.pool.exception.ShutdownThreadPoolExcep
 import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
 import com.github.sliding.adaptive.thread.pool.flow.EventFlowType;
 import com.github.sliding.adaptive.thread.pool.flow.EventPublisher;
-import com.github.sliding.adaptive.thread.pool.flow.SharedEventPublisher;
-import com.github.sliding.adaptive.thread.pool.flow.TaskEventPublisher;
+import com.github.sliding.adaptive.thread.pool.flow.EventPublisherFactory;
 import com.github.sliding.adaptive.thread.pool.flow.processor.EventFilterProcessor;
 import com.github.sliding.adaptive.thread.pool.flow.subscriber.EventSubscriber;
 import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
-import com.github.sliding.adaptive.thread.pool.listener.event.task.TaskEvent;
 import com.github.sliding.adaptive.thread.pool.management.Command;
 import com.github.sliding.adaptive.thread.pool.management.PoolManagementFacade;
 import com.github.sliding.adaptive.thread.pool.management.Query;
 import com.github.sliding.adaptive.thread.pool.mutator.EuclideanDistanceMutator;
 import com.github.sliding.adaptive.thread.pool.mutator.ThreadPoolMutator;
-import com.github.sliding.adaptive.thread.pool.report.metric.TaskMetrics;
-import com.github.sliding.adaptive.thread.pool.report.repository.TaskMetricsRepository;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
@@ -43,7 +39,6 @@ public class AdaptiveThreadPool {
     private final Lock shutdownReadLock = readWriteLock.readLock();
     private final Lock shutdownWriteLock = readWriteLock.writeLock();
     private final ThreadPoolMutator threadPoolMutator;
-    private final TaskMetricsRepository taskMetricsRepository;
     private final EventPublisher eventPublisher;
     private State currentState = State.RUNNING;
 
@@ -70,8 +65,7 @@ public class AdaptiveThreadPool {
                                String threadPoolIdentifier) {
 
         this.threadPoolIdentifier = threadPoolIdentifier;
-        eventPublisher = new TaskEventPublisher(threadPoolIdentifier);
-        taskMetricsRepository = new TaskMetricsRepository(threadPoolIdentifier);
+        eventPublisher = EventPublisherFactory.TASK_EVENT.getEventPublisher();
 
         poolManagementFacade = new PoolManagementFacade(threadPoolIdentifier, tasksQueue);
         taskWorkerCommand = poolManagementFacade.doManagement(PoolManagementFacade.ManagementType.TASK_WORKER_COMMAND);
@@ -111,7 +105,6 @@ public class AdaptiveThreadPool {
         shutdownWriteLock.lock();
         try {
             advanceRunState(State.STOP);
-            taskMetricsRepository.shutdownRepository();
             poolManagementFacade.shutdownAll();
             eventPublisher.shutdown();
         } finally {
@@ -122,10 +115,8 @@ public class AdaptiveThreadPool {
     /**
      * Attempts to stop all actively executing tasks, halts the
      * processing of waiting tasks, and returns a list of the tasks
-     * that were awaiting execution. These tasks are drained (removed)
-     * from the task management upon return from this method.
-     *
-     * <p>This method does not wait for actively executing tasks to
+     * that were awaiting execution.These tasks are drained (removed)
+     * from the task management upon return from this method.<p>This method does not wait for actively executing tasks to
      * terminate.  Use {@link #awaitTermination awaitTermination} to
      * do that.
      *
@@ -134,6 +125,7 @@ public class AdaptiveThreadPool {
      * interrupts tasks via {@link Thread#interrupt}; any task that
      * fails to respond to interrupts may never terminate.
      *
+     * @return not processed {@link Task}
      * @throws SecurityException
      */
     public List<Task> shutdownNow() {
@@ -141,7 +133,6 @@ public class AdaptiveThreadPool {
         shutdownWriteLock.lock();
         try {
             advanceRunState(State.STOP);
-            taskMetricsRepository.shutdownRepository();
             tasks = poolManagementFacade.shutdownAll();
             eventPublisher.shutdown();
         } finally {
@@ -185,44 +176,18 @@ public class AdaptiveThreadPool {
         if (isShutdown()) {
             throw new ShutdownThreadPoolException("Cannot operate on a shutdown thread pool");
         } else {
-            //TODO make metrics events to be done via AOP with annotations
-            // @MetricMutate(EventType.myEvent)
-            storeTaskMetrics(task);
             beforeStoreTask(task);
             addTaskToQueue(task);
         }
     }
 
-    private void storeTaskMetrics(Task task) {
-        TaskMetrics.Builder taskMetricsBuilder = TaskMetrics
-                .builder()
-                .withIdentifier(task.identifier());
-        taskMetricsRepository.store(task.identifier(), taskMetricsBuilder);
-    }
 
     private void beforeStoreTask(Task task) {
-        Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
-        if (eventPublisher.isPresent()) {
-            eventPublisher.get()
-                    .submit(TaskEvent.Builder
-                            .describedAs()
-                            .eventType(EventType.TASK_CLIENT_SUBMISSION_TIME)
-                            .identifier(task.identifier())
-                            .createEvent());
-
-        }
+        task.writeMetric(EventType.TASK_CLIENT_SUBMISSION_TIME);
     }
 
     private void afterStoringTask(Task task) {
-        Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
-        if (eventPublisher.isPresent()) {
-            eventPublisher.get()
-                    .submit(TaskEvent.Builder
-                            .describedAs()
-                            .eventType(EventType.TASK_SUBMISSION_COMPLETED_TIME)
-                            .identifier(task.identifier())
-                            .createEvent());
-        }
+        task.writeMetric(EventType.TASK_SUBMISSION_COMPLETED_TIME);
     }
 
     private void addTaskToQueue(Task command) {

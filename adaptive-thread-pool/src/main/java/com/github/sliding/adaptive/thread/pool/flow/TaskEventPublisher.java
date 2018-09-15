@@ -1,17 +1,9 @@
 package com.github.sliding.adaptive.thread.pool.flow;
 
-public final class TaskEventPublisher extends EventPublisher {
+import java.util.concurrent.Executors;
 
-    public TaskEventPublisher(String eventPublisherName) {
-        super(eventPublisherName);
-        SharedEventPublisher.store(this, this.eventPublisherName);
-
+final class TaskEventPublisher extends EventPublisher {
+    public TaskEventPublisher() {
+        super(Executors.newSingleThreadExecutor());
     }
-
-    @Override
-    public void close() {
-        super.close();
-        SharedEventPublisher.remove(eventPublisherName);
-    }
-
 }

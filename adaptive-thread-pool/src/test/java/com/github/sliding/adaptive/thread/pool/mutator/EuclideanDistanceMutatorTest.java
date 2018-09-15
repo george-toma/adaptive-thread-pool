@@ -8,8 +8,7 @@ import com.github.sliding.adaptive.thread.pool.management.task.TaskState;
 import com.github.sliding.adaptive.thread.pool.management.worker.TaskWorkerCommand;
 import com.github.sliding.adaptive.thread.pool.management.worker.TaskWorkerQuery;
 import com.github.sliding.adaptive.thread.pool.management.worker.TaskWorkerState;
-import com.github.sliding.adaptive.thread.pool.report.metric.TaskMetrics;
-import com.github.sliding.adaptive.thread.pool.report.repository.TaskMetricsRepository;
+import com.github.sliding.adaptive.thread.pool.metric.TaskMetrics;
 import com.github.sliding.adaptive.thread.pool.validation.logging.LogValidator;
 import org.apache.logging.log4j.Level;
 import org.junit.jupiter.api.AfterEach;
@@ -25,12 +24,10 @@ class EuclideanDistanceMutatorTest {
     private Command<TaskWorker> taskWorkerCommand;
     private Query taskWorkerQuery;
     private AbstractThreadPoolMutator poolMutator;
-    private TaskMetricsRepository taskMetricsRepository;
 
     @BeforeEach
     void setup() {
         LogValidator.clear();
-        taskMetricsRepository = new TaskMetricsRepository(adaptiveThreadPoolId);
         TaskWorkerState taskWorkerState = new TaskWorkerState();
         taskWorkerCommand = new TaskWorkerCommand(adaptiveThreadPoolId,
                 taskWorkerState, new TaskCommand(new TaskState(new SynchronousQueue<>())));
@@ -43,7 +40,6 @@ class EuclideanDistanceMutatorTest {
     @AfterEach
     void tearDown() {
         taskWorkerCommand.clear();
-        taskMetricsRepository.shutdownRepository();
     }
 
     @Test
@@ -51,20 +47,18 @@ class EuclideanDistanceMutatorTest {
         //given
 
         //when
-        poolMutator.mutateThreadPoolSize("non-existing-metric");
+        poolMutator.mutateThreadPoolSize(null);
         //then
-        LogValidator.assertLogEvent("Empty task metric received. Skip thread pool mutation", Level.WARN);
+        LogValidator.assertLogEvent("Empty task metric taskId received. Skip thread pool mutation", Level.WARN);
     }
 
     @Test
     void test_mutateThreadPoolSize_when_mutationToIncreaseDone() {
         //given
-        String metricIdentifier = "metric-id";
         TaskMetrics.Builder taskIncreasePoolSize = createMetric(0L, 0L + 10L);
-        taskMetricsRepository.store(metricIdentifier, taskIncreasePoolSize);
 
         //when
-        poolMutator.mutateThreadPoolSize(metricIdentifier);
+        poolMutator.mutateThreadPoolSize(taskIncreasePoolSize.build());
 
         //then
         final int expectedThreadPoolSize = poolMutator.getThreadPoolMutatorValue();
@@ -78,9 +72,8 @@ class EuclideanDistanceMutatorTest {
         long timestamp = 0L;
         //given INCREASE CASE
         TaskMetrics.Builder taskIncreasePoolSize = createMetric(timestamp, timestamp + 10L);
-        taskMetricsRepository.store(taskIncreasePoolSize.identifier(), taskIncreasePoolSize);
         //when INCREASE case
-        poolMutator.mutateThreadPoolSize(taskIncreasePoolSize.identifier());
+        poolMutator.mutateThreadPoolSize(taskIncreasePoolSize.build());
 
         //then INCREASE case
         int expectedThreadPoolSize = poolMutator.getThreadPoolMutatorValue();
@@ -90,10 +83,9 @@ class EuclideanDistanceMutatorTest {
 
         //given DECREASE case
         TaskMetrics.Builder taskDecreasePoolSize = createMetric(timestamp + 10L, timestamp + 20);
-        taskMetricsRepository.store(taskDecreasePoolSize.identifier(), taskDecreasePoolSize);
 
         //when DECREASE case
-        poolMutator.mutateThreadPoolSize(taskDecreasePoolSize.identifier());
+        poolMutator.mutateThreadPoolSize(taskDecreasePoolSize.build());
 
         //then DECREASE case
         Assertions.assertEquals(0, taskWorkerQuery.size());
@@ -107,7 +99,7 @@ class EuclideanDistanceMutatorTest {
         String uuid = UUID.randomUUID().toString();
 
         TaskMetrics.Builder builder = TaskMetrics.builder()
-                .withIdentifier(uuid)
+                .withTaskId(uuid)
                 .withTaskSubmissionCompletedTime(startingTime)
                 .withTaskStartsExecutionTime(endingTime);
         return builder;

@@ -12,6 +12,10 @@ public final class AdaptiveThreadFactoryBuilder {
     private AdaptiveThreadFactoryBuilder() {
     }
 
+    public static AdaptiveThreadFactoryBuilder builder() {
+        return new AdaptiveThreadFactoryBuilder();
+    }
+
     public String getNamePrefix() {
         return namePrefix;
     }
@@ -26,10 +30,6 @@ public final class AdaptiveThreadFactoryBuilder {
 
     public String getThreadPoolIdentifier() {
         return threadPoolIdentifier;
-    }
-
-    public static AdaptiveThreadFactoryBuilder builder() {
-        return new AdaptiveThreadFactoryBuilder();
     }
 
     public AdaptiveThreadFactoryBuilder withNamePrefix(String namePrefix) {

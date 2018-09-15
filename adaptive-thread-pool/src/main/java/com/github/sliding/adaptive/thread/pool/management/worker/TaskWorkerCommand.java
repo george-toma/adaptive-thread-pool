@@ -1,8 +1,8 @@
 package com.github.sliding.adaptive.thread.pool.management.worker;
 
-import com.github.sliding.adaptive.thread.pool.Task;
 import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
 import com.github.sliding.adaptive.thread.pool.management.Command;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.Collections;
@@ -12,7 +12,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @Log4j2
 public final class TaskWorkerCommand extends AbstractTaskWorkerManagement implements Command<TaskWorker> {
-    private final Command<Task> taskCommand;
     /**
      * Permission required for callers of shutdown and shutdownNow.
      * We additionally require (see checkShutdownAccess) that callers
@@ -35,7 +34,7 @@ public final class TaskWorkerCommand extends AbstractTaskWorkerManagement implem
      */
     private static final RuntimePermission shutdownPerm =
             new RuntimePermission("modifyThread");
-
+    private final Command<Task> taskCommand;
     private final ReentrantLock shutdownAccessLock = new ReentrantLock();
 
     public TaskWorkerCommand(String threadPoolIdentifier, TaskWorkerState taskWorkerState, Command<Task> taskCommand) {

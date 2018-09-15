@@ -1,39 +1,36 @@
 package com.github.sliding.adaptive.thread.pool.listener.event.task;
 
-import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
+import com.github.sliding.adaptive.thread.pool.Timestamp;
 import com.github.sliding.adaptive.thread.pool.listener.event.Event;
 import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 
 import java.util.Objects;
 
 public class TaskEvent implements Event {
     private final EventType eventType;
-    private final String identifier;
-    private final TaskWorker taskWorker;
+    private final long timestamp;
+    private final Task task;
 
-    private TaskEvent(EventType eventType, String identifier) {
+    public TaskEvent(EventType eventType, long timestamp, Task task) {
         this.eventType = eventType;
-        this.identifier = identifier;
-        taskWorker = null;
+        this.timestamp = timestamp;
+        this.task = task;
     }
 
-    private TaskEvent(EventType eventType, String identifier, TaskWorker taskWorker) {
-        this.eventType = eventType;
-        this.identifier = identifier;
-        this.taskWorker = taskWorker;
-    }
-
-
+    @Override
     public EventType getEventType() {
         return eventType;
     }
 
-    public String getIdentifier() {
-        return identifier;
+    @Override
+    public Task task() {
+        return task;
     }
 
-    public TaskWorker getTaskWorker() {
-        return taskWorker;
+    @Override
+    public long getTimestamp() {
+        return timestamp;
     }
 
     @Override
@@ -41,37 +38,29 @@ public class TaskEvent implements Event {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TaskEvent taskEvent = (TaskEvent) o;
-        return eventType == taskEvent.eventType &&
-                Objects.equals(identifier, taskEvent.identifier);
+        return timestamp == taskEvent.timestamp &&
+                eventType == taskEvent.eventType;
     }
 
     @Override
     public int hashCode() {
 
-        return Objects.hash(eventType, identifier);
+        return Objects.hash(eventType, timestamp);
     }
 
     @Override
     public String toString() {
         return "TaskEvent{" +
                 "eventType=" + eventType +
-                ", identifier='" + identifier + '\'' +
                 '}';
     }
 
     public static class Builder {
 
         private EventType eventType;
-        private String identifier;
-        private TaskWorker taskWorker;
-
+        private Task task;
         public static Builder describedAs() {
             return new Builder();
-        }
-
-        public Builder identifier(String identifier) {
-            this.identifier = identifier;
-            return this;
         }
 
         public Builder eventType(EventType eventType) {
@@ -79,17 +68,17 @@ public class TaskEvent implements Event {
             return this;
         }
 
-        public Builder taskWorker(TaskWorker taskWorker) {
-            this.taskWorker = taskWorker;
+        public Builder task(Task task){
+            this.task = task;
             return this;
         }
 
 
         public Event createEvent() {
-            if (eventType == null || identifier == null) {
-                throw new IllegalStateException("One of the mandatory parameters is empty [eventType,identifier]");
+            if (eventType == null) {
+                throw new IllegalStateException("One of the mandatory parameters is empty [eventType,taskId]");
             }
-            return new TaskEvent(eventType, identifier, taskWorker);
+            return new TaskEvent(eventType, Timestamp.getTimestamp(),task);
         }
     }
 }

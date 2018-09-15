@@ -4,9 +4,9 @@ import com.github.sliding.adaptive.thread.pool.factory.thread.AdaptiveThreadFact
 import com.github.sliding.adaptive.thread.pool.factory.thread.AdaptiveThreadFactoryBuilder;
 
 abstract class AbstractTaskWorkerManagement {
-    protected TaskWorkerState taskWorkerState;
     protected final String threadPoolIdentifier;
     protected final AdaptiveThreadFactory adaptiveThreadFactory;
+    protected TaskWorkerState taskWorkerState;
 
 
     public AbstractTaskWorkerManagement(String threadPoolIdentifier, TaskWorkerState taskWorkerState) {
@@ -22,5 +22,5 @@ abstract class AbstractTaskWorkerManagement {
                 .build();
         this.threadPoolIdentifier = threadPoolIdentifier;
     }
-    
+
 }

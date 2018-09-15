@@ -11,12 +11,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 @Log4j2
 public abstract class EventPublisher extends SubmissionPublisher<Event> {
-    protected final String eventPublisherName;
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-
-    public EventPublisher(String eventPublisherName) {
-        super(Executors.newSingleThreadExecutor(), EventFlowConstant.EVENT_PUBLISHER_QUEUE_SIZE);
-        this.eventPublisherName = eventPublisherName;
+    public EventPublisher( ExecutorService eventsThreadPool) {
+        super(eventsThreadPool, EventFlowConstant.EVENT_PUBLISHER_QUEUE_SIZE);
     }
 
     /**
@@ -53,6 +50,9 @@ public abstract class EventPublisher extends SubmissionPublisher<Event> {
             } finally {
                 readWriteLock.readLock().unlock();
             }
+        }
+        else{
+            log.info("Event publisher is closed for event [{}]", item);
         }
         return 0;
     }

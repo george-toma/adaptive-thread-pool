@@ -1,7 +1,7 @@
 package com.github.sliding.adaptive.thread.pool.management.task;
 
-import com.github.sliding.adaptive.thread.pool.Task;
 import com.github.sliding.adaptive.thread.pool.management.Command;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.List;

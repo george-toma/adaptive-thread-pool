@@ -1,17 +1,11 @@
 package com.github.sliding.adaptive.thread.pool.listener.event;
 
-import com.github.sliding.adaptive.thread.pool.Timestamp;
-import com.github.sliding.adaptive.thread.pool.factory.TaskWorker;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 
 public interface Event {
 
-    String getIdentifier();
 
     EventType getEventType();
-
-    TaskWorker getTaskWorker();
-
-    default long timestamp() {
-        return Timestamp.getTimestamp();
-    }
+    Task task();
+    long getTimestamp();
 }

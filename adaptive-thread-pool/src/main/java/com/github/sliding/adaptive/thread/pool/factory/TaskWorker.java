@@ -1,11 +1,10 @@
 package com.github.sliding.adaptive.thread.pool.factory;
 
-import com.github.sliding.adaptive.thread.pool.Task;
-import com.github.sliding.adaptive.thread.pool.flow.EventPublisher;
-import com.github.sliding.adaptive.thread.pool.flow.SharedEventPublisher;
+import com.github.sliding.adaptive.thread.pool.flow.EventPublisherFactory;
 import com.github.sliding.adaptive.thread.pool.listener.event.EventType;
 import com.github.sliding.adaptive.thread.pool.listener.event.task.TaskEvent;
 import com.github.sliding.adaptive.thread.pool.management.Command;
+import com.github.sliding.adaptive.thread.pool.task.Task;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.Optional;
@@ -37,6 +36,7 @@ public class TaskWorker extends Thread {
                     task = taskOptional.get();
                     beforeExecute(task);
                     task.run();
+                    afterExecute(task);
                 }
             }
 
@@ -45,36 +45,31 @@ public class TaskWorker extends Thread {
             //do not rethrow the exception to avoid leaking threads from pool
             //TODO push this exception to an exceptionHandler
         } finally {
-            log.info("Thread [{}] was interrupted", getName());
-            if (task != null) {
-                afterExecute(task);
-            }
+            log.info("Adaptive thread [{}] was interrupted", getName());
         }
     }
 
     private void afterExecute(Task task) {
-        final String identifier = task.identifier();
-        Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
-        if (eventPublisher.isPresent()) {
-            eventPublisher.get()
-                    .submit(TaskEvent.Builder
-                            .describedAs()
-                            .eventType(EventType.TASK_FINISHED_TIME)
-                            .taskWorker(this)
-                            .identifier(identifier)
-                            .createEvent());
-        }
+        task.writeMetric(EventType.TASK_FINISHED_TIME);
+
+        EventPublisherFactory.TASK_EVENT
+                .getEventPublisher()
+                .submit(TaskEvent.Builder
+                        .describedAs()
+                        .eventType(EventType.TASK_FINISHED_TIME)
+                        .createEvent());
+
     }
 
     private void beforeExecute(Task task) {
-        Optional<EventPublisher> eventPublisher = SharedEventPublisher.load(threadPoolIdentifier);
-        if (eventPublisher.isPresent()) {
-            eventPublisher.get()
-                    .submit(TaskEvent.Builder
-                            .describedAs()
-                            .eventType(EventType.TASK_STARTS_EXECUTION)
-                            .identifier(task.identifier())
-                            .createEvent());
-        }
+        task.writeMetric(EventType.TASK_STARTS_EXECUTION);
+
+        EventPublisherFactory.TASK_EVENT
+                .getEventPublisher()
+                .submit(TaskEvent.Builder
+                        .describedAs()
+                        .eventType(EventType.TASK_STARTS_EXECUTION)
+                        .createEvent());
+
     }
 }

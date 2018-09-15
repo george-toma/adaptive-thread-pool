@@ -48,7 +48,7 @@ public class EventFilterProcessor
      */
     @Override
     public void onNext(Event item) {
-        log.info("Processor received event [{}]", item);
+        log.debug("Processor received event [{}]", item);
         if (predicate.test(item)) {
             submit(item);
         }
