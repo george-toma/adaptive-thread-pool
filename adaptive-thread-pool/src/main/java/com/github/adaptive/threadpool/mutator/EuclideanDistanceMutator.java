@@ -13,12 +13,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @Log4j2
 public final class EuclideanDistanceMutator extends AbstractThreadPoolMutator {
-    private static final double FIVE_PERCENTAGE = 0.10D;
+    private static final double POSITIVE_DIFF_PERCENTAGE = 0.10D;
+    private static final double NEGATIVE_DIFF_PERCENTAGE = -0.10D;
 
     private static final double IDEAL_SIMILARITY_SCORE = 1.0D;
     private final static double EUCLIDEAN_ARGUMENT_POWER = 2.0D;
     //(1% - error)
-    private final static double THRESHOLD_NO_MUTATION = 0.009D;
     private final ReentrantLock reentrantLock = new ReentrantLock();
     /*
      * 1. Make ideal point value which is composed of :
@@ -50,9 +50,9 @@ public final class EuclideanDistanceMutator extends AbstractThreadPoolMutator {
             log.info("Score [previous: {}, current: {}, diff: {}]",
                     previousSimilarityScore, currentSimilarityScore, similarityDifference);
 
-            if (similarityDifference >= FIVE_PERCENTAGE) {
+            if (similarityDifference >= POSITIVE_DIFF_PERCENTAGE) {
                 evictWorkers();
-            } else if (similarityDifference <= -1 * FIVE_PERCENTAGE) {
+            } else if (similarityDifference <= (NEGATIVE_DIFF_PERCENTAGE)) {
                 addWorkers();
             } else {
                 log.info("No thread pool size adjustment done for task [id: {}]", taskId);

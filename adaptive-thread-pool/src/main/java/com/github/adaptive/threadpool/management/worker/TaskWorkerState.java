@@ -6,9 +6,9 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 
 public final class TaskWorkerState {
-
+    
     //FIXME reentrant read + write lock ?
-    private Queue<TaskWorker> tasksWorkers = new ArrayDeque<>();
+    private final Queue<TaskWorker> tasksWorkers = new ArrayDeque<>();
 
     public int size() {
         return tasksWorkers.size();

@@ -29,8 +29,9 @@ public class TaskCommand extends AbstractTaskManagement implements Command<Task>
         if (task.length == 1) {
             taskState.put(task[0]);
         } else {
-            for (int i = 0; i < task.length; i++)
-                taskState.put(task[i]);
+            for (Task task1 : task) {
+                taskState.put(task1);
+            }
         }
     }
 

@@ -7,6 +7,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -47,7 +48,7 @@ public final class TaskWorkerCommand extends AbstractTaskWorkerManagement implem
         if (worker == null || worker.length == 1) {
             startNewWorker();
         } else {
-            for (int i = 0; i < worker.length; i++) {
+            for (TaskWorker worker1 : worker) {
                 startNewWorker();
             }
         }
@@ -61,12 +62,14 @@ public final class TaskWorkerCommand extends AbstractTaskWorkerManagement implem
     }
 
 
-    private void interruptWorker() {
+    private Optional<TaskWorker> interruptWorker() {
         TaskWorker taskWorker = taskWorkerState.poll();
         if (taskWorker != null) {
             log.info("Evicted worker from thread pool [{}]", taskWorker.getName());
+            taskWorker.stopWorker(true);
             taskWorker.interrupt();
         }
+        return Optional.ofNullable(taskWorker);    
     }
 
     private void interruptWorkers() {

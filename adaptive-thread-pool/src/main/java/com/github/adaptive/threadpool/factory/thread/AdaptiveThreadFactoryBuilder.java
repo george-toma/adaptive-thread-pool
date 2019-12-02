@@ -3,7 +3,7 @@ package com.github.adaptive.threadpool.factory.thread;
 
 public final class AdaptiveThreadFactoryBuilder {
 
-    private static final String THREAD_NAME_PREFIX = "adaptive-worker-thread-";
+    private static final String THREAD_NAME_PREFIX = "adaptive-worker-thread";
     private String namePrefix = THREAD_NAME_PREFIX;
     private boolean isDaemon = false;
     private int priority = Thread.NORM_PRIORITY;
