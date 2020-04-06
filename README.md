@@ -1,5 +1,5 @@
 # adaptive-thread-pool
-Adaptive thread pool implementation in Java.
+Adaptive thread pool implementation in Java by using Euclidian distance to determine the efficiency of the pool.
 
 In progress work:
 - flow diagram to be added
