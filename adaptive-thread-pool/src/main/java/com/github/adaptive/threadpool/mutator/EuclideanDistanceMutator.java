@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.github.adaptive.threadpool.mutator;
 
 import com.github.adaptive.threadpool.metric.TaskMetrics;
@@ -10,9 +5,9 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.concurrent.locks.ReentrantLock;
 
-
 @Log4j2
 public final class EuclideanDistanceMutator extends AbstractThreadPoolMutator {
+
     private static final double POSITIVE_DIFF_PERCENTAGE = 0.10D;
     private static final double NEGATIVE_DIFF_PERCENTAGE = -0.10D;
 
@@ -57,19 +52,21 @@ public final class EuclideanDistanceMutator extends AbstractThreadPoolMutator {
             } else {
                 log.info("No thread pool size adjustment done for task [id: {}]", taskId);
             }
-            //set previous state
-            previousSimilarityScore = currentSimilarityScore;
-            previousTaskSubmissionCompletedTime = metric.getTaskSubmissionCompletedTime();
-            previousTaskStartsExecutionTime = metric.getTaskStartsExecutionTime();
-
+            setPreviousState(currentSimilarityScore, metric);
         } finally {
             reentrantLock.unlock();
         }
     }
 
+    private void setPreviousState(final double currentSimilarityScore, final TaskMetrics metric) {
+        previousSimilarityScore = currentSimilarityScore;
+        previousTaskSubmissionCompletedTime = metric.getTaskSubmissionCompletedTime();
+        previousTaskStartsExecutionTime = metric.getTaskStartsExecutionTime();
+    }
+
     private double computeEuclidianScore(final double taskSubmissionCompletedTime, final double taskStartsExecutionTime) {
-        final double euclideanDistance =
-                Math.sqrt(Math.pow(previousTaskSubmissionCompletedTime - taskSubmissionCompletedTime, EUCLIDEAN_ARGUMENT_POWER)
+        final double euclideanDistance
+                = Math.sqrt(Math.pow(previousTaskSubmissionCompletedTime - taskSubmissionCompletedTime, EUCLIDEAN_ARGUMENT_POWER)
                         + Math.pow(previousTaskStartsExecutionTime - taskStartsExecutionTime, EUCLIDEAN_ARGUMENT_POWER));
 
         return 1.0D / (1.0D + euclideanDistance);
@@ -86,9 +83,8 @@ public final class EuclideanDistanceMutator extends AbstractThreadPoolMutator {
         final int poolSize = query.size();
         log.info("Starting to add new [{}] workers to thread pool [currentSize: {}, newSize: {}]",
                 getThreadPoolMutatorValue(), poolSize, poolSize + getThreadPoolMutatorValue());
-        for (int i = 0; i < getThreadPoolMutatorValue(); i++) {
-            taskWorkerCommand.add(null);
-        }
+
+        taskWorkerCommand.add(getThreadPoolMutatorValue());
     }
 
     private double getSimilarityDifference(double currentSimilarity) {
@@ -97,6 +93,6 @@ public final class EuclideanDistanceMutator extends AbstractThreadPoolMutator {
 
     @Override
     public String getName() {
-        return "euclidean";
+        return "euclidian";
     }
 }

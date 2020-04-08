@@ -1,13 +1,14 @@
 package com.github.adaptive.threadpool.management.task;
 
 import com.github.adaptive.threadpool.management.Command;
+import com.github.adaptive.threadpool.management.CommandAdder;
 import com.github.adaptive.threadpool.task.Task;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
 
 @Log4j2
-public class TaskCommand extends AbstractTaskManagement implements Command<Task> {
+public class TaskCommand extends AbstractTaskManagement implements Command<Task>, CommandAdder<Task> {
 
     public TaskCommand(TaskState taskState) {
         super(taskState);
@@ -24,14 +25,9 @@ public class TaskCommand extends AbstractTaskManagement implements Command<Task>
     }
 
     @Override
-    public void add(Task... task) {
-
-        if (task.length == 1) {
-            taskState.put(task[0]);
-        } else {
-            for (Task task1 : task) {
-                taskState.put(task1);
-            }
+    public void add(Task... tasks) {
+        for (Task task : tasks) {
+            taskState.put(task);
         }
     }
 

@@ -20,7 +20,7 @@ import java.util.UUID;
 import java.util.concurrent.SynchronousQueue;
 
 class EuclideanDistanceMutatorTest {
-    private final String adaptiveThreadPoolId = "test-adaptiveThreadPoolId";
+
     private Command<TaskWorker> taskWorkerCommand;
     private Query taskWorkerQuery;
     private AbstractThreadPoolMutator poolMutator;
@@ -29,9 +29,9 @@ class EuclideanDistanceMutatorTest {
     void setup() {
         LogValidator.clear();
         TaskWorkerState taskWorkerState = new TaskWorkerState();
-        taskWorkerCommand = new TaskWorkerCommand(adaptiveThreadPoolId,
+        taskWorkerCommand = new TaskWorkerCommand(
                 taskWorkerState, new TaskCommand(new TaskState(new SynchronousQueue<>())));
-        taskWorkerQuery = new TaskWorkerQuery(adaptiveThreadPoolId, taskWorkerState);
+        taskWorkerQuery = new TaskWorkerQuery(taskWorkerState);
         poolMutator = new EuclideanDistanceMutator();
         poolMutator.setQuery(taskWorkerQuery);
         poolMutator.setTaskWorkerCommand(taskWorkerCommand);

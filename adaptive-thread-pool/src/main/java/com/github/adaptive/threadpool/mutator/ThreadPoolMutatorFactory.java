@@ -4,12 +4,15 @@ import com.github.adaptive.threadpool.management.Command;
 import com.github.adaptive.threadpool.management.PoolManagementFacade;
 import com.github.adaptive.threadpool.management.Query;
 import com.github.adaptive.threadpool.factory.TaskWorker;
+import com.github.adaptive.threadpool.management.worker.TaskWorkerCommand;
+import com.github.adaptive.threadpool.mutator.exception.NotSupportedMutator;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 
 public final class ThreadPoolMutatorFactory {
+
     private final static Map<String, AbstractThreadPoolMutator> MUTATOR = new HashMap<>();
 
     static {
@@ -25,10 +28,10 @@ public final class ThreadPoolMutatorFactory {
 
         AbstractThreadPoolMutator poolMutator = MUTATOR.get(name);
         if (poolMutator == null) {
-            throw new IllegalArgumentException("No thread poll mutator for " + name);
+            throw new NotSupportedMutator("No thread poll mutator for " + name);
         }
         poolMutator.setQuery(taskWorkerQuery);
-        poolMutator.setTaskWorkerCommand(taskWorkerCommand);
+        poolMutator.setTaskWorkerCommand((TaskWorkerCommand) taskWorkerCommand);
         return poolMutator;
     }
 }

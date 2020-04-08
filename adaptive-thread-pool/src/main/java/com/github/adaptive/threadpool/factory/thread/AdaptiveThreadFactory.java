@@ -1,6 +1,5 @@
 package com.github.adaptive.threadpool.factory.thread;
 
-
 import com.github.adaptive.threadpool.management.Command;
 import com.github.adaptive.threadpool.factory.TaskWorker;
 import com.github.adaptive.threadpool.task.Task;
@@ -15,13 +14,11 @@ public final class AdaptiveThreadFactory {
     private final String namePrefix;
     private final boolean isDaemon;
     private final int priority;
-    private final String threadPoolIdentifier;
 
     public AdaptiveThreadFactory(AdaptiveThreadFactoryBuilder threadFactoryBuilder) {
         this.isDaemon = threadFactoryBuilder.isDaemon();
         this.namePrefix = threadFactoryBuilder.getNamePrefix();
         this.priority = threadFactoryBuilder.getPriority();
-        this.threadPoolIdentifier = threadFactoryBuilder.getThreadPoolIdentifier();
     }
 
     public Thread newThread(Command<Task> taskCommand) {
@@ -39,6 +36,5 @@ public final class AdaptiveThreadFactory {
 
         return workerThread;
     }
-
 
 }

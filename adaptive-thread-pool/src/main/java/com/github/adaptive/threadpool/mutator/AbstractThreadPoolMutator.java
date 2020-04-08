@@ -1,26 +1,17 @@
 package com.github.adaptive.threadpool.mutator;
 
-import com.github.adaptive.threadpool.management.Command;
 import com.github.adaptive.threadpool.management.Query;
-import com.github.adaptive.threadpool.factory.TaskWorker;
+import com.github.adaptive.threadpool.management.worker.TaskWorkerCommand;
 
 public abstract class AbstractThreadPoolMutator implements ThreadPoolMutator {
-    protected Command<TaskWorker> taskWorkerCommand;
-    protected Query query;
-
-    public Command<TaskWorker> getTaskWorkerCommand() {
-        return taskWorkerCommand;
-    }
-
-    public Query getQuery() {
-        return query;
-    }
-
+    protected  TaskWorkerCommand taskWorkerCommand;
+    protected  Query query;
+   
     public void setQuery(Query query) {
         this.query = query;
     }
 
-    public void setTaskWorkerCommand(Command<TaskWorker> taskWorkerCommand) {
+    public void setTaskWorkerCommand(TaskWorkerCommand taskWorkerCommand) {
         this.taskWorkerCommand = taskWorkerCommand;
     }
 

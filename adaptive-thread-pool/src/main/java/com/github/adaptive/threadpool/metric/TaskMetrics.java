@@ -10,11 +10,11 @@ import java.util.Objects;
  */
 public final class TaskMetrics {
 
-    private long taskClientSubmissionTime;
-    private long taskSubmissionCompletedTime;
-    private long taskStartsExecutionTime;
-    private long taskFinishedTime;
-    private String taskId;
+    private final long taskClientSubmissionTime;
+    private final long taskSubmissionCompletedTime;
+    private final long taskStartsExecutionTime;
+    private final long taskFinishedTime;
+    private final String taskId;
 
     private TaskMetrics(Builder builder) {
         this.taskClientSubmissionTime = builder.taskClientSubmissionTime;

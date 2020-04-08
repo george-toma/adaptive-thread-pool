@@ -4,10 +4,10 @@ import com.github.adaptive.threadpool.listener.event.EventType;
 import com.github.adaptive.threadpool.Timestamp;
 
 public interface Measurable {
-    Long[] metricsValues = new Long[EventType.values().length];
+    Long[] METRICS_VALUES = new Long[EventType.values().length];
 
     default long readMetric(EventType eventType) {
-        Long value = metricsValues[eventType.ordinal()];
+        Long value = METRICS_VALUES[eventType.ordinal()];
         if (value == null) {
             return 0L;
         }
@@ -16,6 +16,6 @@ public interface Measurable {
 
     default void writeMetric(EventType eventType) {
 
-        metricsValues[eventType.ordinal()] = Timestamp.getTimestamp();
+        METRICS_VALUES[eventType.ordinal()] = Timestamp.getTimestamp();
     }
 }

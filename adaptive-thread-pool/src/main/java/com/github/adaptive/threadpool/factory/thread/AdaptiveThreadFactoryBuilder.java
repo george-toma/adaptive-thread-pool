@@ -28,10 +28,6 @@ public final class AdaptiveThreadFactoryBuilder {
         return priority;
     }
 
-    public String getThreadPoolIdentifier() {
-        return threadPoolIdentifier;
-    }
-
     public AdaptiveThreadFactoryBuilder withNamePrefix(String namePrefix) {
         if (namePrefix == null) {
             namePrefix = THREAD_NAME_PREFIX;
@@ -42,12 +38,6 @@ public final class AdaptiveThreadFactoryBuilder {
 
     public AdaptiveThreadFactoryBuilder withDaemon(boolean isDaemon) {
         this.isDaemon = isDaemon;
-        return this;
-    }
-
-
-    public AdaptiveThreadFactoryBuilder withThreadPoolIdentifier(String threadPoolIdentifier) {
-        this.threadPoolIdentifier = threadPoolIdentifier;
         return this;
     }
 

@@ -11,7 +11,4 @@ public interface Command<T> {
     List<T> shutdown();
 
     void clear();
-
-    void add(T... t);
-
 }
