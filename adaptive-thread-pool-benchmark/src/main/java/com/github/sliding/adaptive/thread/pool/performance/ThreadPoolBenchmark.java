@@ -32,50 +32,57 @@
 package com.github.sliding.adaptive.thread.pool.performance;
 
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.openjdk.jmh.runner.options.VerboseMode;
 
 import java.math.BigDecimal;
 import java.util.Random;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@BenchmarkMode(Mode.AverageTime)
-//    @OperationsPerInvocation(5)
+@BenchmarkMode(Mode.Throughput)
+@State(Scope.Benchmark)
 public class ThreadPoolBenchmark {
-    static final int BASE = 10;
-    static final int TIMES = 1;
 
-    @State(Scope.Benchmark)
-    public static class ThreadPoolState {
-        ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
-        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        ExecutorService forkJoinPool = Executors.newWorkStealingPool();
-        CountDownLatch countDownLatch;
+    @Param({"10"})
+    public int base;
 
-        @Setup(Level.Invocation)
-        public void doSetup() {
-            countDownLatch = new CountDownLatch(TIMES);
-        }
-        @TearDown(Level.Trial)
-        public void doTearDown(){
-            cachedThreadPool.shutdown();
-        }
+    @Param({"1"})
+    public int times;
+
+    ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
+    ExecutorService fixedThreadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    ExecutorService forkJoinPool = Executors.newWorkStealingPool();
+    CountDownLatch countDownLatch;
+
+    public static void main(String[] args) throws RunnerException {
+
+        Options opt = new OptionsBuilder()
+                .include(ThreadPoolBenchmark.class.getSimpleName())
+                .verbosity(VerboseMode.EXTRA)
+                .forks(2)
+                .build();
+
+        new Runner(opt).run();
+
     }
 
+    @Setup(Level.Invocation)
+    public void doSetup() {
+        countDownLatch = new CountDownLatch(base);
+    }
 
-    @Benchmark
-    public void measureCachedThreadPool(ThreadPoolState threadPoolState) throws InterruptedException {
-        //given
-        ExecutorService threadPool = threadPoolState.cachedThreadPool;
-
-        //when
-        executeInThreadPool(threadPoolState, threadPool);
-
-        //then
-        threadPoolState.countDownLatch.await();
+    @TearDown(Level.Trial)
+    public void doTearDown() {
+        System.out.println("TearDow");
+        cachedThreadPool.shutdown();
     }
 
 
@@ -113,27 +120,28 @@ public class ThreadPoolBenchmark {
 //
 //    }
 
-    private void executeInThreadPool(ThreadPoolState threadPoolState, ExecutorService executorService) {
-        for (int i = 0; i < TIMES; i++) {
-            executorService.execute(() -> {
-                Random random = new Random();
-                BigDecimal obj = new BigDecimal(random.nextInt(BASE));
-                obj = obj.multiply(new BigDecimal(random.nextInt(BASE)));
-                double sin = Math.sin(obj.doubleValue());
-                System.out.println(sin);
-                threadPoolState.countDownLatch.countDown();
-            });
-        }
+    @Benchmark
+    public void measureCachedThreadPool(Blackhole blackhole) throws InterruptedException {
+        //given
+        ExecutorService threadPool = cachedThreadPool;
+
+        //when
+        executeInThreadPool(threadPool, blackhole);
+
+        //then
+        countDownLatch.await();
     }
 
-    public static void main(String[] args) throws RunnerException {
-
-        Options opt = new OptionsBuilder()
-                .include(ThreadPoolBenchmark.class.getSimpleName())
-                .forks(1)
-                .build();
-
-        new Runner(opt).run();
-
+    private void executeInThreadPool(ExecutorService executorService, Blackhole blackhole) {
+        for (int i = 0; i < times; i++) {
+            executorService.execute(() -> {
+                Random random = new Random();
+                BigDecimal obj = new BigDecimal(random.nextInt(10));
+                obj = obj.multiply(new BigDecimal(random.nextInt(10)));
+                double sin = Math.sin(obj.doubleValue());
+                blackhole.consume(sin);
+                countDownLatch.countDown();
+            });
+        }
     }
 }
